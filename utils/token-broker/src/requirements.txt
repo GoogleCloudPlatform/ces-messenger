@@ -1,0 +1,5 @@
+google-auth
+functions-framework
+requests
+gunicorn
+google-api-core

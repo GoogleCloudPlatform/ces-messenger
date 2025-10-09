@@ -1,0 +1,40 @@
+{
+  "BIDI_SDI" : {
+    "configMessage": {
+      "session": "<FROM SETTINGS>",
+      "inputAudioConfig": {
+        "audioEncoding": "AUDIO_ENCODING_LINEAR_16",
+        "sampleRateHertz": 16000,
+        "languageCode": "<FROM SETTINGS>",
+        "singleUtterance": true
+      },
+      "outputAudioConfig": {
+        "audioEncoding": "OUTPUT_AUDIO_ENCODING_LINEAR_16",
+        "sample_rate_hertz": 24000,
+        "synthesizeSpeechConfig": {
+          "voice": {
+            "name": "<FROM SETTINGS>"
+          }
+        }
+      },
+      "languageCode": "<FROM SETTINGS>",
+      "enableProactiveProcessing": true,
+      "enableStreamingSynthesize": "<FROM SETTINGS>",
+      "enablePartialResponse": true,
+      "streamingMode": "<FROM SETTINGS>"
+    }
+  },
+  "BIDI_RS": {
+    "config": {
+      "session":"<FROM SETTINGS>",
+      "inputAudioConfig": {
+        "audioEncoding": "LINEAR16",
+        "sampleRateHertz":16000
+      },
+      "outputAudioConfig": {
+        "audioEncoding":"LINEAR16",
+        "sampleRateHertz":16000
+      }
+    }
+  }
+}

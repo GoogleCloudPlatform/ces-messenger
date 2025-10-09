@@ -1,0 +1,36 @@
+{
+  "name": "ces-messenger",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint --ext .js,.ts,.vue --fix src/"
+  },
+  "dependencies": {
+    "eventemitter3": "^5.0.1",
+    "marked": "^16.1.1",
+    "random-id": "^1.0.4",
+    "vue": "^3.5.18",
+    "vue3-google-login": "^2.0.33",
+    "dompurify": "3.2.7"
+  },
+  "devDependencies": {
+    "@firebase/webchannel-wrapper": "1.0.4",
+    "@types/marked": "^5.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "eslint": "^9.37.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.5.0",
+    "prettier": "^3.6.2",
+    "vite": "^7.0.6"
+  }
+}

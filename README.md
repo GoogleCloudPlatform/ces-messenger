@@ -1,0 +1,301 @@
+# CES Messenger Web Component
+
+`ces-messenger` is a customizable web component that allows you to embed a chat widget for Google's Customer Engagement Suite (CES) Next Generation Agents into your website.
+
+## Integration
+
+To add the `ces-messenger` to your web page, include the component's JavaScript and CSS files in the `<head>` of your HTML document, and then add the `<ces-messenger>` tag to your `<body>`.
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+    <title>My Agent</title>
+  </head>
+  <body>
+    <ces-messenger
+      deployment-id="projects/your-project-id/locations/your-location/agents/your-agent-id/deployments/your-deployment-id"
+      chat-title="My Awesome Agent"
+      token-broker-url="https://your.token.broker/url"
+      initial-message="Hello"
+      auto-open-chat=true
+      audio-input-mode="DEFAULT_OFF"
+    ></ces-messenger>
+  </body>
+</html>
+```
+
+> **Note:** If you want to use your own build of `ces-messenger`, you will need to host the `ces-messenger.js` file on your own CDN or server and replace the `src` path accordingly.
+
+## Component Attributes (Parameters)
+
+You can customize the `ces-messenger` component by setting the following attributes on the `<ces-messenger>` tag.
+
+For a comprehensive list of all available options and their default values, see the detailed [options documentation](doc/options.md).
+
+### General Configuration
+
+| Attribute | Required | Description | Example |
+|---|---|---|---|
+| `deployment-id` | **Yes** | The deployment ID of the channel created in the console for the web chat | `projects/your-project-id/locations/your-location/agents/your-agent-id/deployments/your-deployment-id` |
+| `chat-title` | No | The title displayed at the top of the chat window. | `My Support Agent` |
+| `initial-message` | No | A message sent to the agent to start the conversation. This message is not displayed to the user. | `hi` |
+| `input-placeholder-text` | No | The placeholder text for the user input field. | `Type your message...` |
+| `auto-open-chat` | No | If set to `true`, the chat window will open automatically on page load. | `true` |
+| `language-code` | No | The language code for the conversation. Defaults to `en-US`. | `es-ES` |
+| `disable-image-uploads` | No | Disable the image upload button from the input box. | `true` |
+| `enable-debugger` | No | If set to `true`, enables the debugger, which prints detailed logs to the console and exposes them on the `window.cesMessengerLogs` object. | `true` |
+
+### Authentication
+
+| Attribute | Description | Example |
+|---|---|---|
+| `token-broker-url` | A URL to a service that provides an access token for authentication. This is an alternative to `oauth-client-id`. | `https://your.token.broker/get-token` |
+| `api-uri` | The base URI to be used for requests in the case of text-only mode, or a websocket url to be used as websocket proxy for audio sessions. This can be useful if you need to send requests via a proxy to handle authentication or other network considerations. | `https://your-proxy.example.com/` or `wss://your-proxy.example.com/` | |
+| `oauth-client-id` | The OAuth 2.0 Client ID for authenticating the end-user. | `your-client-id.apps.googleusercontent.com` |
+
+See the detailed [authentication documentation](doc/authentication.md).
+
+### Audio and Streaming
+
+| Attribute | Description | Values | Default |
+|---|---|---|---|
+| `audio-input-mode` | Defines how audio input from the user is handled. | `DEFAULT_ON`, `DEFAULT_OFF`, `SPACE_BAR_TO_TALK`, `NONE` | `DEFAULT_ON` |
+| `audio-output-mode`| Defines how audio output from the agent is handled. | `ALWAYS_ON`, `DEFAULT_ON`, `DEFAULT_OFF`, `DISABLED` | `ALWAYS_ON` |
+| `enable-live-transcription` | If `true`, populates the input field with the live transcript as the user speaks. | `true`, `false` | `false` |
+| `voice` | The voice to use for Text-to-Speech. See Google Cloud TTS voices. | `en-US-Standard-C` | `en-US-Chirp3-HD-Aoede` |
+
+### Styling and Appearance
+
+| Attribute | Description | Values | Default |
+|---|---|---|---|
+| `bidi-style-id` | The overall style of the widget. `call` mode is a voice-only experience. | `chat`, `call` | `chat` |
+| `bidi-theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
+| `bidi-size` | The size of the chat widget. | `small`, `large` | `large` |
+
+## Exposed Functions
+
+You can interact with the `ces-messenger` component programmatically using JavaScript.
+
+First, get a reference to the component:
+```javascript
+const cesm = document.querySelector('ces-messenger');
+```
+
+### `sessionInput(input)`
+
+Sends a text message and/or images to the agent on behalf of the user. `input` can be a string or an object containing a text message (string) an array of images (base64 strings) and a set of variables.
+
+
+```javascript
+window.addEventListener('ces-messenger-connected', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  // Text only input
+  cesm.sessionInput("What's the world's tallest tree?");
+
+  // Text and image input
+  const images = ["data:image/png;base64,iVBORw0KGgoAAAANSUhEU..."];
+  const input = { text: "What kind of tree is this?", images: images};
+  cesm.sessionInput(input);
+
+  // Text with variables
+  cesm.sessionInput({ text: "Hello", vars: { customer_id: 1234 } });
+});
+```
+
+### `setQueryParameters(params)`
+
+Sets query parameters to be sent with the next request to the agent. This is useful for passing contextual information.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+  cesm.setQueryParameters({ username: "John Doe", userId: "12345" });
+});
+```
+
+### `registerClientSideFunction(toolName, callback)`
+
+Registers a client-side function that can be called by the agent as a tool. The callback function will receive the tool arguments as an object.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerClientSideFunction('display_picture', (args) => {
+    Logger.log("Agent wants to display a picture of:", args);
+    const pictureHtml = `
+      <div>
+        <img style="width: 100%" src="${args.url}" />
+        <p>${args.caption}</p>
+      </div>
+    `;
+    // Use insertMessage to show custom HTML content
+    cesm.insertMessage('BOT', { payload: { html: pictureHtml } });
+    return Promise.resolve({ "status": "OK" });
+  });
+});
+```
+
+### `insertMessage(actor, message)`
+
+Inserts a message into the chat history.
+*   `actor`: `'USER'` or `'BOT'`
+*   `message`: An object containing `text` or a `payload` with `html`.
+
+```javascript
+cesm.insertMessage('BOT', { text: 'Here is some information for you.' });
+
+cesm.insertMessage('BOT', { payload: { html: '<b>Important!</b> Read this.' } });
+```
+
+### `setAccessToken(token)`
+
+Sets the access token to authenticate with the agent. This can be used if no token broker is configured.
+
+```javascript
+const cesm = document.querySelector('ces-messenger');
+cesm.setAccessToken('ya29.a0AQQ_BDQ4rxV-bBxjlNAKh...');
+```
+
+### `pauseConversation()`
+
+Stops audio recording and playback.
+
+### `disconnectWebStream(reason)`
+
+Disconnects from the agent. The `reason` is optional.
+
+### `endSession()`
+
+Sends a message to the agent to end the current session.
+
+### `clearStorage(args)`
+
+Clears the session storage for the widget, effectively starting a new session on the next page load. If `args.clearAuthentication` is true, it will also sign the user out.
+
+```javascript
+const cesm = document.querySelector('ces-messenger');
+cesm.clearStorage({ clearAuthentication: true });
+```
+
+### `signOut()`
+
+Signs the user out by clearing authentication tokens from local storage.
+
+## Events
+
+The component emits several custom events you can listen for.
+
+### `ces-messenger-loaded`
+
+Fired when the `ces-messenger` component has been fully loaded and its functions are ready to be called.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  Logger.log('CES Messenger is ready!');
+  const cesm = document.querySelector('ces-messenger');
+  // You can now call functions on cesm
+});
+```
+
+### `ces-messenger-connected`
+
+Fired when the connection to the agent has been successfully established.
+
+```javascript
+window.addEventListener('ces-messenger-connected', () => {
+  Logger.log('Connected to the agent.');
+  const cesm = document.querySelector('ces-messenger');
+  cesm.sessionInput("I'd like to book a flight.");
+});
+```
+
+### `ces-messenger-disconnected`
+
+Fired when the connection to the agent is closed. The `event.detail` object contains a `disconnectReason`.
+
+### `ces-authentication-error`
+
+Fired when there is an authentication error.
+
+### `ces-user-input-entered`
+
+Fired when the user sends a text message. The `event.detail` object contains the `input` string.
+
+## Advanced: Event Listeners
+
+You can register callbacks for more granular control over the chat panel's behavior.
+
+### `registerListener('beforeChatPanelClose', callback)`
+
+Registers a function to be called before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerListener('beforeChatPanelClose', () => {
+    return confirm('Are you sure you want to close the chat?');
+  });
+});
+```
+
+### `registerListener('onConnectionClosed', callback)`
+
+Registers a function to be called when the connection is closed. The callback receives an event object with a `disconnectReason`.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerListener('onConnectionClosed', (event) => {
+    Logger.log(`Connection closed. Reason: ${event.disconnectReason}`);
+    if (event.disconnectReason === 'AGENT_REQUESTED') {
+        alert('The agent has ended the conversation.');
+    }
+  });
+});
+```
+
+## Examples
+
+### Sending a message when connected
+
+```html
+<!-- In your HTML body -->
+<ces-messenger
+  chat-title="My Agent"
+  deployment-id="..."
+  token-broker-url="..."
+  auto-open-chat=true
+></ces-messenger>
+
+<script>
+  window.addEventListener('ces-messenger-connected', () => {
+    const cesm = document.querySelector('ces-messenger');
+    cesm.sessionInput("What's the world's tallest tree?");
+  });
+</script>
+```
+
+### Setting query parameters on load
+
+```html
+<!-- In your HTML body -->
+<ces-messenger
+  chat-title="My Agent"
+  deployment-id="..."
+  token-broker-url="..."
+></ces-messenger>
+
+<script>
+  window.addEventListener('ces-messenger-loaded', () => {
+    const cesm = document.querySelector('ces-messenger');
+    cesm.setQueryParameters({ username: "JaneDoe", loyalty: "gold" });
+  });
+</script>
+```

@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+twilio
+python-dotenv
+websockets
+google-auth
+google-api-core
+google-cloud-logging==3.10.0

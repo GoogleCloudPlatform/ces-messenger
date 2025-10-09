@@ -1,0 +1,10 @@
+[project]
+name = "access-token-broker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "functions-framework>=3.9.2",
+    "google-auth>=2.40.3",
+]

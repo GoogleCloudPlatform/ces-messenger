@@ -1,0 +1,31 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>CES Messenger</title>
+</head>
+
+<body>
+
+  <!-- Chat widget -->
+  <script type="module" src="/src/main.js"></script>
+  <ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My test bot"
+    token-broker-url="https://my-token-broker-url.us-central1.run.app"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    audio-output-mode="DEFAULT_ON"
+    auto-open-chat=true
+    bidi-style-id="chat"
+    bidi-size="large"
+    input-placeholder-text="Type or speak your question!"
+    show-error-messages=true></ces-messenger>
+</body>
+
+</html>
