@@ -1268,7 +1268,7 @@ function reconnect() {
 
 function saveStateToSession() {
   const state = {
-    messages: messages.value,
+    messages: messages.value.filter(m => m.msg_type !== 'ERROR_MESSAGE'),
     sessionId: bidiAdaptor.sessionId,
     chatUiStatus: chatUiStatus.value,
     toolMessageQueue: toolMessageQueue.value
