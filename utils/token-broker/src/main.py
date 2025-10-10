@@ -61,7 +61,7 @@ env_origins = os.environ.get("AUTHORIZED_ORIGINS")
 if env_origins:
     # Split by comma and strip any whitespace from each origin.
     additional_origins = [
-        origin.strip() for origin in env_origins.split(";") if origin.strip()
+        origin.strip().rstrip('/') for origin in env_origins.split(";") if origin.strip()
     ]
     authorized_origins.extend(additional_origins)
 
@@ -90,6 +90,7 @@ def get_access_token(request):
 
     is_authorized = False
     if origin:
+        origin = origin.rstrip("/")
         if origin.startswith("http://localhost:"):
             is_authorized = True
         else:
