@@ -85,7 +85,7 @@
   <div class="explanation">
     <h2>Panel close options</h2>
     <p>This example demonstrates how to intercept the chat panel's close event to present the user with a custom confirmation dialog offering different session cleanup options.</p>
-    <p>This is accomplished by using the <code>registerListener('beforeChatPanelClose', callback)</code> method. The callback function returns <code>false</code> to prevent the default closing behavior and instead displays a custom HTML dialog.</p>
+    <p>This is accomplished by using the <code>registerHook('before-chat-panel-close', callback)</code> method. The callback function returns <code>false</code> to prevent the default closing behavior and instead displays a custom HTML dialog.</p>
     <p>This dialog allows the user to choose from several actions:</p>
     <ul>
       <li><b>Disconnect from the agent:</b> Calls <code>disconnectWebStream()</code> to close the connection.</li>
@@ -144,7 +144,7 @@
     window.addEventListener('ces-messenger-loaded', () => {
       cesMessenger = document.querySelector('ces-messenger');
 
-      cesMessenger.registerListener('beforeChatPanelClose', () => {
+      cesMessenger.registerHook('before-chat-panel-close', () => {
         if (forceClose) {
           forceClose = false; // Reset for next time
           return true; // Allow closing

@@ -260,7 +260,7 @@ Fired when the user sends a text message. The `event.detail` object contains the
 
 You can register callbacks for more granular control over the chat panel's behavior.
 
-### `registerListener('beforeChatPanelClose', callback)`
+### `registerHook('before-chat-panel-close', callback)`
 
 Registers a function to be called before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs. See an example in [doc/examples/panel_close_options.html](doc/examples/panel_close_options.html).
 
@@ -268,25 +268,8 @@ Registers a function to be called before the chat panel is closed. If the callba
 window.addEventListener('ces-messenger-loaded', () => {
   const cesm = document.querySelector('ces-messenger');
 
-  cesm.registerListener('beforeChatPanelClose', () => {
+  cesm.registerHook('before-chat-panel-close', () => {
     return confirm('Are you sure you want to close the chat?');
-  });
-});
-```
-
-### `registerListener('onConnectionClosed', callback)`
-
-Registers a function to be called when the connection is closed. The callback receives an event object with a `disconnectReason`.
-
-```javascript
-window.addEventListener('ces-messenger-loaded', () => {
-  const cesm = document.querySelector('ces-messenger');
-
-  cesm.registerListener('onConnectionClosed', (event) => {
-    Logger.log(`Connection closed. Reason: ${event.disconnectReason}`);
-    if (event.disconnectReason === 'AGENT_REQUESTED') {
-        alert('The agent has ended the conversation.');
-    }
   });
 });
 ```

@@ -278,7 +278,7 @@ const logger = new Logger();
 if (typeof window.kite === 'undefined') {
   window.kite = {};
 }
-const cesmEventHandlers = {};
+const cesmHooks = {};
 
 // Widget properties
 const props = defineProps(WIDGET_ATTRIBUTES);
@@ -1225,19 +1225,15 @@ function openChatPanel() {
 };
 
 function closeChatPanel() {
-  let confirmClose = true;
-  if (cesmEventHandlers['beforeChatPanelClose']) {
-    confirmClose = cesmEventHandlers['beforeChatPanelClose']();
+  let shouldClose = true;
+  if (cesmHooks['before-chat-panel-close']) {
+    shouldClose = cesmHooks['before-chat-panel-close']();
   }
 
-  if (confirmClose) {
+  if (shouldClose) {
     chatUiStatus.value = 'collapsed';
     if (isAudioPlaying.value) audioStreamer.stop();
     window.dispatchEvent(new CustomEvent('ces-chat-open-changeded', { detail: { isOpen: false } }));
-  }
-
-  if (cesmEventHandlers['afterChatPanelClose']) {
-    cesmEventHandlers['afterChatPanelClose']();
   }
 };
 
@@ -1334,9 +1330,6 @@ function getWebStreamEventListeners() {
       if (disconnectReason.value === 'UNKNOWN') {
         Logger.warn('BidiStream disconnected.');
         //insertErrorMessage('The API disconnected this session as soon as we attempted to contact it. Please double check your settings and try again.');
-      }
-      if (cesmEventHandlers['onConnectionClosed']) {
-        cesmEventHandlers['onConnectionClosed']({ disconnectReason: disconnectReason.value });
       }
       window.dispatchEvent(new CustomEvent('ces-messenger-disconnected', { detail: { disconnectReason: disconnectReason.value } }));
     },
@@ -1616,8 +1609,8 @@ async function continueLogin(response) {
   startConversation();
 }
 
-function registerListener(eventName, callback) {
-  cesmEventHandlers[eventName] = callback;
+function registerHook(eventName, callback) {
+  cesmHooks[eventName] = callback;
 }
 
 defineExpose({
@@ -1629,7 +1622,7 @@ defineExpose({
   insertMessage,
   pauseConversation,
   registerClientSideFunction,
-  registerListener,
+  registerHook,
   sessionInput,
   setAccessToken,
   setQueryParameters,
