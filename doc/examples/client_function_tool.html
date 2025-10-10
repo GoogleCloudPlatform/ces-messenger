@@ -1,0 +1,73 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Client function</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="explanation">
+    <h2>Client Function Tool Example</h2>
+    <p>This example demonstrates how to integrate a client-side function with the chat widget. Client-side functions allow the agent to trigger actions on the client side. It is up to the client to decide what to do with the data received from the agent. Then, the client sends back a response to the agent.</p>
+    <p>The page waits for the <code>ces-messenger-loaded</code> event, to make sure the web widget is loaded. Then, calls the <code>registerClientSideFunction()</code> method on the <code>&lt;ces-messenger&gt;</code> component. This method takes the tool identifier and a callback function as arguments. When the agent calls the tool, the callback is executed with the arguments provided by the agent. In this case, the function navigates the browser to a new URL.</p>
+    <p>The <code>holdToolResponses()</code> function is used to retain the tool response, and only send it once the navigation to the new page is complete. This way, the agent will only continue the conversation from the new page. Tipically with a response like "I've taken you to the products page".</p>
+  </div>
+
+<ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My demo chat bot"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    auto-open-chat=true
+    bidi-size="large"
+    show-error-messages=true></ces-messenger>
+</body>
+
+<script>
+  window.addEventListener('ces-messenger-loaded', () => {
+    const cesMessenger = document.querySelector('ces-messenger');
+
+    // Register the client-side function
+    cesMessenger.registerClientSideFunction(
+      {
+        toolName: 'projects/my-project-id/locations/us/apps/aa443389-21ab-46e1-9991-cde4cfbe5a4a/tools/596a0e06-3b15-40d6-baa5-e2ff12835ae6',
+        toolDisplayName: 'navigate_to_page',
+      },
+      (args) => {
+        const {url} = args;
+        cesMessenger.holdToolResponses();
+        setTimeout(() => {
+          document.location.href = args.url
+        }, 100)
+        return Promise.resolve({ status: 'success' });
+      }
+    );
+  });
+</script>
+</html>

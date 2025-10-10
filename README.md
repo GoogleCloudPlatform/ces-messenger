@@ -140,6 +140,36 @@ window.addEventListener('ces-messenger-loaded', () => {
 });
 ```
 
+### `holdToolResponses()`
+
+Pauses the sending of tool responses back to the agent. When a client-side function is executed, its response is normally sent back immediately. Calling this function will queue up any subsequent tool responses until flushToolResponses() is called. This is useful for scenarios where you need to perform an action (like navigating to a new page) before the agent should be notified that the tool has completed.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+    const cesMessenger = document.querySelector('ces-messenger');
+
+    // Register the client-side function
+    cesMessenger.registerClientSideFunction(
+      {
+        toolName: 'projects/my-project-id/locations/us/apps/aa443389-21ab-46e1-9991-cde4cfbe5a4a/tools/596a0e06-3b15-40d6-baa5-e2ff12835ae6',
+        toolDisplayName: 'navigate_to_page',
+      },
+      (args) => {
+        const {url} = args;
+        cesMessenger.holdToolResponses();
+        setTimeout(() => {
+          document.location.href = args.url
+        }, 100)
+        return Promise.resolve({ status: 'success' });
+      }
+    );
+  });
+```
+
+### `flushToolResponses()`
+
+Sends any queued tool responses that were held by `holdToolResponses()`. This function is typically not called directly, as navigating away from the page will clear the session. It is useful in specific cases where you need to manually release the held responses.
+
 ### `insertMessage(actor, message)`
 
 Inserts a message into the chat history.
@@ -232,7 +262,7 @@ You can register callbacks for more granular control over the chat panel's behav
 
 ### `registerListener('beforeChatPanelClose', callback)`
 
-Registers a function to be called before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs.
+Registers a function to be called before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs. See an example in [doc/examples/panel_close_options.html](doc/examples/panel_close_options.html).
 
 ```javascript
 window.addEventListener('ces-messenger-loaded', () => {
@@ -260,6 +290,15 @@ window.addEventListener('ces-messenger-loaded', () => {
   });
 });
 ```
+
+## Session management
+
+The ces-messenger component handles session state to provide a persistent experience for the user within a browser session.
+
+  * **Chat History**: User messages and the current session ID are stored in the browser's sessionStorage. This means the conversation history is maintained if the user reloads the page but is cleared when the browser tab is closed. You can manually clear this history by calling `clearStorage()`.
+  * **Authentication**: The user's authentication token and its expiration time are stored in the browser's localStorage. This allows the user to remain signed in across different browser tabs and sessions. To clear this, you can call `signOut()`. Alternatively, you can call `clearStorage({ clearAuthentication: true })` to clear both the chat history and the authentication token.
+  * **Session ID**: To renew the session ID without clearing the chat history, you can use the `endSession()` function. This will send a signal to the agent to terminate the current session and a new session ID will be generated for subsequent interactions.
+
 
 ## Examples
 
@@ -299,3 +338,14 @@ window.addEventListener('ces-messenger-loaded', () => {
   });
 </script>
 ```
+
+### Other examples
+
+See other examples in the [doc/examples](doc/examples) directory. To run these examples locally, edit the `ces-messenger` options to point to your agent and token broker, then navigate to that folder, and launch a local web server:
+
+```
+python3 -m http.server 5173
+```
+
+Then, with your browser, open http://localhost:5173/.
+

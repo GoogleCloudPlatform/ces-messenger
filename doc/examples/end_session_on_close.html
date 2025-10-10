@@ -1,0 +1,66 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Disconnect when panel closed</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="explanation">
+    <h2>Disconnect when chat window is closed</h2>
+    <p>This example demonstrates how to end the chat session when the user closes the chat window.</p>
+    <p>This is accomplished by listening for the <code>ces-chat-open-changed</code> event, which is fired when the chat panel is opened or closed. When the event indicates the panel has been closed (<code>event.detail.isOpen</code> is <code>false</code>), the callback function gets a reference to the <code>&lt;ces-messenger&gt;</code> component and calls <code>endSession()</code>, <code>disconnectWebStream()</code>, and <code>clearStorage()</code> to terminate the session and clean up the chat history.</p>
+  </div>
+
+<ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My demo chat bot"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    auto-open-chat=true
+    bidi-size="large"
+    show-error-messages=true></ces-messenger>
+</body>
+
+<script>
+  window.addEventListener('ces-chat-open-changeded', (event) => {
+
+    const cesm = document.querySelector('ces-messenger');
+
+    if (!event.detail.isOpen) {
+      // Tell agent to end the session
+      cesm.endSession();
+      // Disconnect the connection
+      cesm.disconnectWebStream('USER_CLOSED_CHAT');
+      // Clear messages from the chat
+      cesm.clearStorage();
+    }
+  });
+</script>
+</html>

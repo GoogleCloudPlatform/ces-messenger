@@ -1,0 +1,80 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Session timeout</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="explanation">
+    <h2>Automatic Session Timeout Example</h2>
+    <p>This example demonstrates how to automatically end a chat session after a period of user inactivity.</p>
+    <p>This is accomplished by using JavaScript's <code>setTimeout</code> to create a timer. The timer is reset every time the user interacts with the chat widget (by listening for the <code>ces-user-input-entered</code> event). If the timer completes, it means the user has been inactive for the specified duration. The callback function then gets a reference to the <code>&lt;ces-messenger&gt;</code> component and calls <code>endSession()</code>, <code>disconnectWebStream()</code>, and <code>clearStorage()</code> to terminate the session and clean up the chat history.</p>
+  </div>
+
+<ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My demo chat bot"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    auto-open-chat=true
+    bidi-size="large"
+    show-error-messages=true></ces-messenger>
+</body>
+
+<script>
+  // End the session if there is no message from the user in 60 seconds
+  const SESSION_TIMEOUT = 60;
+
+  function inactivityTimer(timeoutDelay) {
+    // Clear the previous timer, if any
+    if (window.chatTimer) clearTimeout(window.chatTimer);
+
+    // Set a new timer
+    window.chatTimer = setTimeout(() => {
+      const cesm = document.querySelector('ces-messenger');
+      console.log('No activity for ' + timeoutDelay + ' seconds. Ending session.')
+      // Tell agent to end the session
+      cesm.endSession();
+      // Disconnect the connection
+      cesm.disconnectWebStream('USER_TIMEOUT');
+      // Clear messages from the chat
+      cesm.clearStorage();
+    }, timeoutDelay * 1000);    
+  }
+
+  window.addEventListener('ces-user-input-entered', () => {
+    inactivityTimer(SESSION_TIMEOUT);
+  });
+
+  window.addEventListener('ces-messenger-connected', () => {
+    inactivityTimer(SESSION_TIMEOUT);
+  });
+</script>
+</html>

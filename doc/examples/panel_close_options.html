@@ -1,0 +1,200 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Panel close options</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    #close-confirmation-dialog {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px solid #ccc;
+      background: white;
+      padding: 20px;
+      z-index: 10000;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      font-family: 'Google Sans Text', sans-serif;
+    }
+
+    #close-confirmation-dialog .dialog-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #close-confirmation-dialog p {
+      margin-top: 0;
+    }
+
+    #close-confirmation-dialog .checkbox-group {
+      margin-bottom: 15px;
+    }
+
+    #close-confirmation-dialog .button-group {
+      align-self: flex-end;
+    }
+
+    #close-confirmation-dialog button {
+      margin-left: 10px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #dadce0;
+    }
+
+    #confirm-accept-btn {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+    }
+  </style>
+</head>
+
+<body>
+
+
+
+  <div class="explanation">
+    <h2>Panel close options</h2>
+    <p>This example demonstrates how to intercept the chat panel's close event to present the user with a custom confirmation dialog offering different session cleanup options.</p>
+    <p>This is accomplished by using the <code>registerListener('beforeChatPanelClose', callback)</code> method. The callback function returns <code>false</code> to prevent the default closing behavior and instead displays a custom HTML dialog.</p>
+    <p>This dialog allows the user to choose from several actions:</p>
+    <ul>
+      <li><b>Disconnect from the agent:</b> Calls <code>disconnectWebStream()</code> to close the connection.</li>
+      <li><b>End the conversation:</b> Calls <code>endSession()</code> and <code>clearStorage()</code> to terminate the session and clear chat history.</li>
+      <li><b>Sign out:</b> Calls <code>signOut()</code> to clear authentication tokens.</li>
+    </ul>
+    <p>After the user makes their selection and clicks "Accept", the selected actions are performed, and the panel is then programmatically closed by simulating a click on the component's internal close button.</p>
+
+    <p>You can experiment with different combinations of the thee options proposed to see how the session behaves in each case.</p>
+  </div>
+
+  <!-- Custom confirmation dialog -->
+  <div id="close-confirmation-dialog">
+    <div class="dialog-content">
+      <p>You are about to close the chat panel. Please, select if you also want to end the conversation or sign out:</p>
+      <br>
+      <div class="checkbox-group">
+        <div>
+          <input type="checkbox" id="confirm-disconnect-checkbox" name="disconnect" checked>
+          <label for="confirm-disconnect-checkbox">Disconnect from the agent</label>
+        </div>
+        <div>
+          <input type="checkbox" id="confirm-close-chat-checkbox" name="close-chat" checked>
+          <label for="confirm-close-chat-checkbox">End the conversation</label>
+        </div>
+        <div>
+          <input type="checkbox" id="confirm-sign-out-checkbox" name="sign-out">
+          <label for="confirm-sign-out-checkbox">Sign out</label>
+        </div>
+      </div>
+      <div class="button-group">
+        <button id="confirm-cancel-btn">Cancel</button>
+        <button id="confirm-accept-btn">Accept</button>
+      </div>
+    </div>
+  </div>
+
+<ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My demo chat bot"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    auto-open-chat=true
+    bidi-size="large"
+    show-error-messages=true></ces-messenger>
+
+  <!-- Custom logic -->
+  <script>
+
+    let cesMessenger;
+
+    // A flag to bypass the custom confirmation dialog
+    let forceClose = false;
+
+    window.addEventListener('ces-messenger-loaded', () => {
+      cesMessenger = document.querySelector('ces-messenger');
+
+      cesMessenger.registerListener('beforeChatPanelClose', () => {
+        if (forceClose) {
+          forceClose = false; // Reset for next time
+          return true; // Allow closing
+        }
+
+        // Show custom confirmation dialog
+        const dialog = document.getElementById('close-confirmation-dialog');
+        if (dialog) {
+          dialog.style.display = 'block';
+        }
+
+        // Prevent the default closing behavior
+        return false;
+      });
+    });
+
+    // Set up event listeners for the custom dialog
+    const dialog = document.getElementById('close-confirmation-dialog');
+    const acceptBtn = document.getElementById('confirm-accept-btn');
+    const cancelBtn = document.getElementById('confirm-cancel-btn');
+    const disconnectCheckbox = document.getElementById('confirm-disconnect-checkbox');
+    const closeChatCheckbox = document.getElementById('confirm-close-chat-checkbox');
+    const signOutCheckbox = document.getElementById('confirm-sign-out-checkbox');
+
+    cancelBtn?.addEventListener('click', () => {
+      dialog.style.display = 'none';
+    });
+
+    acceptBtn?.addEventListener('click', () => {
+      if (disconnectCheckbox?.checked) {
+        cesMessenger.disconnectWebStream('USER_REQUESTED');
+      }
+      if (closeChatCheckbox?.checked) {
+        cesMessenger.endSession();
+        cesMessenger.clearStorage();
+      }
+      if (signOutCheckbox?.checked) {
+        cesMessenger.signOut();
+      }
+
+      dialog.style.display = 'none';
+
+      // Now, programmatically close the chat panel
+      forceClose = true;
+      document.querySelector('ces-messenger')?.shadowRoot?.querySelector('.close-button')?.click();
+    });
+  </script>
+
+
+
+</body>
+
+</html>
