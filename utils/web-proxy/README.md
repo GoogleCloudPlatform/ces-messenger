@@ -71,11 +71,11 @@ To configure the ces-messenger widget so it uses your web proxy, you need to set
     chat-title="My agent"
     api-uri="https://ces-web-proxy-ykldfp2kla-uc.a.run.app"
     initial-message="hi!"
-    bidi-theme-id="light"
+    theme-id="light"
     audio-input-mode="NONE"
-    bidi-style-id="chat"
-    bidi-size="large"
-    show-error-messages=true
+    modality="chat"
+    size="large"
+    show-error-messages="true"
 ></ces-messenger>
 ```
 
@@ -151,10 +151,10 @@ You can then configure your ces-messenger running on a local web server (e.g. `p
     chat-title="My agent"
     api-uri="http://localhost:8080"
     initial-message="hi!"
-    bidi-theme-id="light"
+    theme-id="light"
     audio-input-mode="NONE"
-    bidi-style-id="chat"
-    bidi-size="large"
-    show-error-messages=true
+    modality="chat"
+    size="large"
+    show-error-messages="true"
 ></ces-messenger>
 ```

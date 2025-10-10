@@ -74,7 +74,7 @@
             />
           </li>
           <li
-            v-if="agentConfig.bidiStyleId === 'call'"
+            v-if="agentConfig.modality === 'call'"
             class="call-circle"
             :class="{ moving: isAudioPlaying }"
           >
@@ -161,7 +161,7 @@
               <div
                 v-if="allowInput && showMicButton"
                 class="talk-button"
-                :class="{ talking: !!talking, chat: agentConfig.bidiStyleId === 'chat' }"
+                :class="{ talking: !!talking, chat: agentConfig.modality === 'chat' }"
                 draggable="false"
                 @click="setTalkingMode(!talking)"
               >
@@ -180,10 +180,10 @@
                 </div>
                 <div
                   class="mic-container"
-                  :class="{ talking: !!talking, chat: agentConfig.bidiStyleId === 'chat' }"
+                  :class="{ talking: !!talking, chat: agentConfig.modality === 'chat' }"
                 >
                   <img
-                    :src="`data:image/svg+xml;utf8,${(talking || agentConfig.bidiStyleId === 'chat') ? encodeURIComponent(iconTalking) : encodeURIComponent(iconTalkingOff)}`"
+                    :src="`data:image/svg+xml;utf8,${(talking || agentConfig.modality === 'chat') ? encodeURIComponent(iconTalking) : encodeURIComponent(iconTalkingOff)}`"
                   >
                 </div>
               </div>
@@ -315,6 +315,22 @@ for (let [key, value] of Object.entries(props)) {
   }
 }
 
+// Map deprecated parameters to new ones if not already defined
+const deprecatedParamMappings = {
+  bidiSize: 'size',
+  bidiStyleId: 'modality',
+  bidiThemeId: 'themeId'
+};
+
+for (let [key, value] of Object.entries(deprecatedParamMappings)) {
+  if (agentConfig[key]) {
+    if (!agentConfig[value]) {
+      agentConfig[value] = agentConfig[key];
+    }
+    delete agentConfig[key];
+  }
+}
+
 // support legacy websocketProxy parameter
 if (agentConfig.websocketProxy && !agentConfig.apiUri) {
   agentConfig.apiUri = agentConfig.websocketProxy;
@@ -381,9 +397,9 @@ const pushToTalk = !['DEFAULT_ON', 'NONE', undefined].includes(agentConfig.audio
 
 // Classes for bidi widget
 const bidiClasses = ref([
-  agentConfig.bidiThemeId || DEFAULTS.BIDI_THEME_ID,
-  agentConfig.bidiStyleId || DEFAULTS.BIDI_STYLE_ID,
-  agentConfig.bidiSize || DEFAULTS.BIDI_SIZE,
+  agentConfig.themeId || DEFAULTS.BIDI_THEME_ID,
+  agentConfig.modality || DEFAULTS.BIDI_STYLE_ID,
+  agentConfig.size || DEFAULTS.BIDI_SIZE,
   agentConfig.deploymentId || DEFAULTS.BIDI_DEPLOYMENT_ID
 ]);
 
@@ -494,7 +510,7 @@ const canTakePicture = ref(false);
 
 let audioEnabled = ref(agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'DEFAULT_OFF');
 const displayMuteButton = agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'ALWAYS_ON';
-const isCallMode = ref(agentConfig.bidiStyleId === 'call');
+const isCallMode = ref(agentConfig.modality === 'call');
 
 // Template Refs
 const messageBox = useTemplateRef('message-box');
@@ -636,7 +652,7 @@ function setTalkingMode(talkingMode) {
 
 function validateAgentConfig() {
   // Rule 1: 'call' style requires audio input
-  if (agentConfig.audioInputMode === 'NONE' && agentConfig.bidiStyleId === 'call') {
+  if (agentConfig.audioInputMode === 'NONE' && agentConfig.modality === 'call') {
     insertErrorMessage('The web component was configured in call mode but does not allow audio input. Please correct the configuration and try again.<br/>' +
       '<span style="color: #747775;">See the <a href="https://cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/web-widget" target="_blank" style="color: #747775;">documentation</a> for more information.</span>', true);
     return false;

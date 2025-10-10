@@ -62,11 +62,11 @@ To configure the ces-messenger widget so it uses your token broker, you need to 
     chat-title="My agent"
     token-broker-url="https://ces-token-broker-yklfop2kla-ew.a.run.app"
     initial-message="hi!"
-    bidi-theme-id="light"
+    theme-id="light"
     audio-input-mode="DEFAULT_OFF"
-    bidi-style-id="chat"
-    bidi-size="large"
-    show-error-messages=true
+    modality="chat"
+    size="large"
+    show-error-messages="true"
 ></ces-messenger>
 ```
 

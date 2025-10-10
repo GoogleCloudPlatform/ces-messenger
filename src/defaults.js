@@ -70,17 +70,30 @@ const WIDGET_ATTRIBUTES = {
     type: [Boolean, String],
     default: false
   },
+  // deprecated
   bidiSize: {
     type: String,
     default: 'large'
   },
-  // chat, call
+  size: {
+    type: String,
+    default: 'large'
+  },
+  // deprecated
   bidiStyleId: {
     type: String,
     default: 'chat'
   },
-  // light, dark
+  modality: {
+    type: String,
+    default: 'chat'
+  },
+  // deprecated
   bidiThemeId: {
+    type: String,
+    default: 'light'
+  },
+  themeId: {
     type: String,
     default: 'light'
   },

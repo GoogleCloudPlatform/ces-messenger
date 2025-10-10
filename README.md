@@ -20,7 +20,7 @@ To add the `ces-messenger` to your web page, include the component's JavaScript 
       chat-title="My Awesome Agent"
       token-broker-url="https://your.token.broker/url"
       initial-message="Hello"
-      auto-open-chat=true
+      auto-open-chat="true"
       audio-input-mode="DEFAULT_OFF"
     ></ces-messenger>
   </body>
@@ -71,9 +71,9 @@ See the detailed [authentication documentation](doc/authentication.md).
 
 | Attribute | Description | Values | Default |
 |---|---|---|---|
-| `bidi-style-id` | The overall style of the widget. `call` mode is a voice-only experience. | `chat`, `call` | `chat` |
-| `bidi-theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
-| `bidi-size` | The size of the chat widget. | `small`, `large` | `large` |
+| `modality` | The overall style of the widget. `call` mode is a voice-only experience. | `chat`, `call` | `chat` |
+| `theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
+| `size` | The size of the chat widget. | `small`, `large` | `large` |
 
 ## Exposed Functions
 
@@ -293,7 +293,7 @@ The ces-messenger component handles session state to provide a persistent experi
   chat-title="My Agent"
   deployment-id="..."
   token-broker-url="..."
-  auto-open-chat=true
+  auto-open-chat="true"
 ></ces-messenger>
 
 <script>

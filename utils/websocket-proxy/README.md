@@ -88,11 +88,11 @@ To configure the ces-messenger widget so it uses your web proxy, you need to set
     chat-title="My agent"
     api-uri="wss://ces-websocket-proxy-yklfop2kla-ew.a.run.app"
     initial-message="hi!"
-    bidi-theme-id="light"
+    theme-id="light"
     audio-input-mode="DEFAULT_OFF"
-    bidi-style-id="chat"
-    bidi-size="large"
-    show-error-messages=true
+    modality="chat"
+    size="large"
+    show-error-messages="true"
 ></ces-messenger>
 ```
 
@@ -170,10 +170,10 @@ You can then configure your ces-messenger running on a local web server (e.g. `p
     chat-title="My agent"
     api-uri="ws://localhost:8765"
     initial-message="hi!"
-    bidi-theme-id="light"
+    theme-id="light"
     audio-input-mode="DEFAULT_OFF"
-    bidi-style-id="chat"
-    bidi-size="large"
-    show-error-messages=true
+    modality="chat"
+    size="large"
+    show-error-messages="true"
 ></ces-messenger>
 ```

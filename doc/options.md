@@ -75,21 +75,21 @@ See the detailed authentication documentation [here](authentication.md).
 
 ## Styling and Appearance
 
-### `bidi-style-id`
+### `modality`
 
-*Optional*. Determines the style of the widget.
+*Optional*. Determines the modality of the widget.
 *   **Values**:
     *   `chat`: A classic chat window is displayed. This option supports both text and audio-based chat, which can be configured with `audio-input-mode`.
     *   `call`: A pure voice experience with a smaller widget and no full chat history. This is not compatible with the `NONE` audio mode.
 *   **Default**: `chat`
 
-### `bidi-size`
+### `size`
 
 *Optional*. The size of the widget.
 *   **Values**: `large` | `small`
 *   **Default**: `large`
 
-### `bidi-theme-id`
+### `theme-id`
 
 *Optional*. The theme to use for the web component widget.
 *   **Values**: `light` | `dark`
@@ -122,12 +122,12 @@ See the detailed authentication documentation [here](authentication.md).
 
 ### `image-upload-max-width`
 
-*Optional*. The maximum width (in pixels) to which an uploaded image will be resized.
+*Optional*. The maximum width (in pixels) to which an uploaded image will be resized if too large.
 *   **Default**: `800`
 
 ### `image-upload-max-height`
 
-*Optional*. The maximum height (in pixels) to which an uploaded image will be resized.
+*Optional*. The maximum height (in pixels) to which an uploaded image will be resized if too large.
 *   **Default**: `800`
 
 ## Debugging options
