@@ -696,7 +696,7 @@ function insertMessage(actor, value, fullPayload) {
   // Make sure html messages do not contain malicious code
   if (value.payload?.html) {
     value.payload.html = DOMPurify.sanitize(value.payload.html, {
-      ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel']
+      ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src']
     });
   }
 
