@@ -1589,9 +1589,28 @@ async function refreshToken() {
       return false;
     }
   } catch (error) {
-    Logger.error('Error fetching impersonated token:', error);
-    insertErrorMessage(`Token broker unreachable. Please, verify your token broker URL:<br/><span style="color: #747775; font-family:monospace; font-size: smaller;">${agentConfig.tokenBrokerUrl}</span><br/>` +
-      '<span style="color: #747775;">See the <a href="https://cloud.google.com/customer-engagement-ai/conversational-agents/ps/deploy/web-widget" target="_blank" style="color: #747775;">documentation</a> for more information.</span>', true);
+    Logger.error('Error fetching impersonated token:', error.message);
+    // Attempt to differentiate between CORS and other network errors.
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      try {
+        // Send a no-cors request to check for reachability.
+        // This will succeed if the server is up, even if it's a CORS error.
+        await fetch(agentConfig.tokenBrokerUrl, { mode: 'no-cors' });
+        // If the above line does not throw, the server is reachable. The error is likely CORS.
+        // Although it could also be a 404, or other HTTP error.
+        insertErrorMessage(`The token broker at <code>${agentConfig.tokenBrokerUrl}</code> may have a CORS configuration issue. 
+          <ol style="margin-left: 20px; font-size: smaller; padding: 0">
+            <li>Ensure the token broker URL is correct, and responds with a 200 status code.</li>
+            <li>Ensure the current origin (<code>${window.location.origin}</code>) is included in your token broker's <code>AUTHORIZED_ORIGINS</code> environment variable.</li>
+          </ol>`, true);
+      } catch (reachabilityError) {
+        // The no-cors request also failed, so the server is likely unreachable.
+        insertErrorMessage(`The token broker at <code>${agentConfig.tokenBrokerUrl}</code> is unreachable. Please verify the URL and ensure the service is running.`, true);
+      }
+    } else {
+      // For other types of errors, show a generic message.
+      insertErrorMessage(`An error occurred while trying to contact the token broker at <code>${agentConfig.tokenBrokerUrl}</code>.`, true);
+    }
     return false;
   }
 }
