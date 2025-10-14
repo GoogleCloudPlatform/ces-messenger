@@ -73,29 +73,29 @@ const WIDGET_ATTRIBUTES = {
   // deprecated
   bidiSize: {
     type: String,
-    default: 'large'
+    default: undefined
   },
   size: {
     type: String,
-    default: 'large'
+    default: undefined
   },
   // deprecated
   bidiStyleId: {
     type: String,
-    default: 'chat'
+    default: undefined
   },
   modality: {
     type: String,
-    default: 'chat'
+    default: undefined
   },
   // deprecated
   bidiThemeId: {
     type: String,
-    default: 'light'
+    default: undefined
   },
   themeId: {
     type: String,
-    default: 'light'
+    default: undefined
   },
   cesUrl: {
     type: String,
