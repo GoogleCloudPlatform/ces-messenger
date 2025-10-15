@@ -1237,7 +1237,7 @@ onUnmounted(() => {
 function openChatPanel() {
   chatUiStatus.value = 'expanded';
   startConversation();
-  window.dispatchEvent(new CustomEvent('ces-chat-open-changeded', { detail: { isOpen: true } }));
+  window.dispatchEvent(new CustomEvent('ces-chat-open-changed', { detail: { isOpen: true } }));
 };
 
 function closeChatPanel() {
@@ -1249,7 +1249,7 @@ function closeChatPanel() {
   if (shouldClose) {
     chatUiStatus.value = 'collapsed';
     if (isAudioPlaying.value) audioStreamer.stop();
-    window.dispatchEvent(new CustomEvent('ces-chat-open-changeded', { detail: { isOpen: false } }));
+    window.dispatchEvent(new CustomEvent('ces-chat-open-changed', { detail: { isOpen: false } }));
   }
 };
 
