@@ -27,164 +27,136 @@ if (devEndpointHttp) {
   CES_HTTP_ENDPOINTS.dev = devEndpointHttp;
 }
 
-const DEFAULTS = {
-  MESSENGER_TYPE: 'bidi',
-  MESSENGER_STYLE: 'large',
-  DFCX_URL:
-    'https://dialogflow.cloud.google.com/cx/projects/ccai-academy-bot/locations/global/agents/7329a01d-3a1e-4738-a32f-df7e2197023f/flows/00000000-0000-0000-0000-000000000000/flow_creation',
-  PROJECT_ID: 'aiestaran-ccai',
-  LOCATION: 'global',
-  AGENT_ID: '7329a01d-3a1e-4738-a32f-df7e2197023f',
-  CHAT_TITLE: 'My Demo Agent',
-  INITIAL_MESSAGE: 'hi!',
-  THEME_ID: 'current',
-  INCLUDE_LINK_TO_SOURCE: false,
-  DF_VERSION: 'prod',
-  BACKGROUND_REPEAT: true,
-  BIDI_THEME_ID: 'light',
-  BIDI_STYLE_ID: 'chat',
-  STREAMING_MODE: 'STREAMING_MODE_PROACTIVE',
-  STREAMING_TTS: true,
-  AUDIO_INPUT_MODE: 'DEFAULT_ON',
-  BARGE_IN_SENSITIVITY: 'MEDIUM',
-  BIDI_SIZE: 'large',
-  DEPLOYMENT_ID: undefined,
-};
-
 const WIDGET_ATTRIBUTES = {
   apiUri: {
-    type: String,
-    default: undefined
+    type: String
   },
   // DEFAULT_ON, DEFAULT_OFF, SPACE_BAR_TO_TALK, NONE
   audioInputMode: {
-    type: String,
-    default: 'DEFAULT_ON'
+    type: String
   },
   // ALWAYS_ON, DEFAULT_ON, DEFAULT_OFF, DISABLED
   audioOutputMode: {
-    type: String,
-    default: 'DEFAULT_ON'
+    type: String
   },
   autoOpenChat: {
-    type: [Boolean, String],
-    default: false
+    type: [Boolean, String]
   },
   // deprecated
   bidiSize: {
-    type: String,
-    default: undefined
+    type: String
   },
   size: {
-    type: String,
-    default: undefined
+    type: String
   },
   // deprecated
   bidiStyleId: {
-    type: String,
-    default: undefined
+    type: String
   },
   modality: {
-    type: String,
-    default: undefined
+    type: String
   },
   // deprecated
   bidiThemeId: {
-    type: String,
-    default: undefined
+    type: String
   },
   themeId: {
-    type: String,
-    default: undefined
+    type: String
   },
   cesUrl: {
-    type: String,
-    default: undefined
+    type: String
   },
   chatTitle: {
-    type: String,
-    default: ''
+    type: String
   },
   customConfigJson: {
-    type: String,
-    default: undefined
+    type: String
   },
   deploymentId: {
-    type: String,
-    default: undefined
+    type: String
   },
   disableImageUploads: {
-    type: [Boolean, String],
-    default: false
+    type: [Boolean, String]
   },
   enableDebugger: {
-    type: [Boolean, String],
-    default: false
+    type: [Boolean, String]
   },
   enableLiveTranscription: {
-    type: [Boolean, String],
-    default: false
+    type: [Boolean, String]
   },
   environment: {
     type: String,
-    required: false,
-    default: undefined
+    required: false
   },
   imageUploadMaxWidth: {
-    type: [Number, String],
-    default: 800
+    type: [Number, String]
   },
   imageUploadMaxHeight: {
-    type: [Number, String],
-    default: 800
+    type: [Number, String]
   },
   imageUploadMaxNumber: {
-    type: [Number, String],
-    default: 4
+    type: [Number, String]
   },
   initialMessage: {
-    type: String,
-    default: undefined
+    type: String
   },
   inputPlaceholderText: {
-    type: String,
-    default: 'What do you need help with?'
+    type: String
   },
   // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
   languageCode: {
-    type: String,
-    default: 'en-US'
+    type: String
   },
   oauthClientId: {
-    type: String,
-    default: undefined
+    type: String
   },
   showErrorMessages: {
-    type: [Boolean, String],
-    default: false
+    type: [Boolean, String]
   },
   // STREAMING_MODE_BASIC, STREAMING_MODE_PROACTIVE, STREAMING_MODE_PASSTHROUGH
   streamingMode: {
-    type: String,
-    default: 'STREAMING_MODE_PROACTIVE'
+    type: String
   },
   streamingTts: {
-    type: [Boolean, String],
-    default: true
+    type: [Boolean, String]
   },
   tokenBrokerUrl: {
-    type: String,
-    default: undefined
+    type: String
   },
   // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
   voice: {
-    type: String,
-    default: 'en-US-Chirp3-HD-Aoede'
+    type: String
   },
   websocketProxy: {
-    type: String,
-    default: undefined
+    type: String
   }
 };
 
-export { DEFAULTS, WIDGET_ATTRIBUTES, CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS, cesUrlPattern, version};
+const WIDGET_DEFAULTS = {
+  // DEFAULT_ON, DEFAULT_OFF, SPACE_BAR_TO_TALK, NONE
+  audioInputMode: 'DEFAULT_OFF',
+  // ALWAYS_ON, DEFAULT_ON, DEFAULT_OFF, DISABLED
+  audioOutputMode: 'DEFAULT_ON',
+  autoOpenChat: false,
+  chatTitle: '',
+  disableImageUploads: false,
+  enableDebugger: false,
+  enableLiveTranscription: false,
+  imageUploadMaxWidth: 800,
+  imageUploadMaxHeight: 800,
+  imageUploadMaxNumber: 4,
+  inputPlaceholderText: 'What do you need help with?',
+  // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
+  languageCode: 'en-US',
+  modality: 'chat',
+  showErrorMessages: false,
+  // STREAMING_MODE_BASIC, STREAMING_MODE_PROACTIVE, STREAMING_MODE_PASSTHROUGH
+  streamingMode: 'STREAMING_MODE_PROACTIVE',
+  streamingTts: true,
+  themeId: 'light',
+  size: 'large',
+  // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
+  voice: 'en-US-Chirp3-HD-Aoede',
+}
+
+export { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS, cesUrlPattern, version};

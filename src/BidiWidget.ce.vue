@@ -251,7 +251,7 @@ import { FunctionToolHandler } from '@/function-tools';
 import { googleLogin, getAuthButtonHtml } from '@/auth.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
-import { DEFAULTS, WIDGET_ATTRIBUTES } from '@/defaults.js';
+import { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS } from '@/defaults.js';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -312,6 +312,13 @@ for (let [key, value] of Object.entries(props)) {
     } else if (agentConfig[key] === 'PUSH_TO_TALK_DISCREET') {
       agentConfig[key] = 'SPACE_BAR_TO_TALK';
     }
+  }
+}
+
+// Apply defaults from WIDGET_DEFAULTS to agentConfig
+for (let [key, value] of Object.entries(WIDGET_DEFAULTS)) {
+  if (!agentConfig[key]) {
+    agentConfig[key] = value;
   }
 }
 
@@ -397,10 +404,10 @@ const pushToTalk = !['DEFAULT_ON', 'NONE', undefined].includes(agentConfig.audio
 
 // Classes for bidi widget
 const bidiClasses = ref([
-  agentConfig.themeId || DEFAULTS.BIDI_THEME_ID,
-  agentConfig.modality || DEFAULTS.BIDI_STYLE_ID,
-  agentConfig.size || DEFAULTS.BIDI_SIZE,
-  agentConfig.deploymentId || DEFAULTS.BIDI_DEPLOYMENT_ID
+  agentConfig.themeId || WIDGET_DEFAULTS.themeId,
+  agentConfig.modality || WIDGET_DEFAULTS.modality,
+  agentConfig.size || WIDGET_DEFAULTS.size,
+  agentConfig.deploymentId || WIDGET_DEFAULTS.deploymentIdD
 ]);
 
 // load Google auth sdk if needed
