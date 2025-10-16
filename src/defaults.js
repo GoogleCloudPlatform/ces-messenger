@@ -88,6 +88,9 @@ const WIDGET_ATTRIBUTES = {
     type: String,
     required: false
   },
+  hideInitialMessage: {
+    type: [Boolean, String]
+  },
   imageUploadMaxWidth: {
     type: [Number, String]
   },
@@ -142,6 +145,7 @@ const WIDGET_DEFAULTS = {
   disableImageUploads: false,
   enableDebugger: false,
   enableLiveTranscription: false,
+  hideInitialMessage: true,
   imageUploadMaxWidth: 800,
   imageUploadMaxHeight: 800,
   imageUploadMaxNumber: 4,

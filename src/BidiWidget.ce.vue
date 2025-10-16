@@ -317,7 +317,7 @@ for (let [key, value] of Object.entries(props)) {
 
 // Apply defaults from WIDGET_DEFAULTS to agentConfig
 for (let [key, value] of Object.entries(WIDGET_DEFAULTS)) {
-  if (!agentConfig[key]) {
+  if (agentConfig[key] === undefined) {
     agentConfig[key] = value;
   }
 }
@@ -330,8 +330,8 @@ const deprecatedParamMappings = {
 };
 
 for (let [key, value] of Object.entries(deprecatedParamMappings)) {
-  if (agentConfig[key]) {
-    if (!agentConfig[value]) {
+  if (agentConfig[key] !== undefined) {
+    if (agentConfig[value] === undefined || agentConfig[value] === WIDGET_DEFAULTS[value]) {
       agentConfig[value] = agentConfig[key];
     }
     delete agentConfig[key];
@@ -732,48 +732,45 @@ function insertMessage(actor, value, fullPayload) {
     if (existingAuthMessageIndex > -1) messages.value.splice(existingAuthMessageIndex, 1);
   }
 
-  // Omit the first message if it is the initial message from the configuration
-  if (!(agentConfig.initialMessage != '' && messages.value.length == 0 && actor === 'USER')) {
-    const message = { actor, ...value };
+  const message = { messageId, actor, ...value };
 
-    if (message.text || message.payload?.html) {
-      if (message.actor === 'BOT') {
-        // get the last message from the BOT, with matching turnIndex, if it exists
-        const lastMessageFilter = { actor: 'BOT' };
-        if (message.turnIndex) lastMessageFilter.turnIndex = message.turnIndex;
-        let lastMessage = getLastMessage(lastMessageFilter);
+  if (message.text || message.payload?.html) {
+    if (message.actor === 'BOT') {
+      // get the last message from the BOT, with matching turnIndex, if it exists
+      const lastMessageFilter = { actor: 'BOT' };
+      if (message.turnIndex) lastMessageFilter.turnIndex = message.turnIndex;
+      let lastMessage = getLastMessage(lastMessageFilter);
 
-        if (message.partial == undefined && message.turnIndex && lastMessage && message.turnIndex == lastMessage.turnIndex) {
-          message.partial = true;
-        }
+      if (message.partial == undefined && message.turnIndex && lastMessage && message.turnIndex == lastMessage.turnIndex) {
+        message.partial = true;
+      }
 
-        if (lastMessage != undefined && (lastMessage.partial || (message.turnIndex != undefined && message.turnIndex == lastMessage.turnIndex))) {
-          if (message.partial) {
-            lastMessage.text += message.text;
-          } else {
-            lastMessage.text = message.text;
-            lastMessage.partial = false;
-          }
+      if (lastMessage != undefined && (lastMessage.partial || (message.turnIndex != undefined && message.turnIndex == lastMessage.turnIndex))) {
+        if (message.partial) {
+          lastMessage.text += message.text;
         } else {
-          messages.value.push(message);
-        }
-
-        // Take the last message again, and parse it, if it looks like markdown
-        lastMessage = getLastMessage({ actor: 'BOT' });
-        if (lastMessage && lastMessage.text &&
-          (lastMessage.text.includes('* ') || lastMessage.text.includes('**'))) {
-          lastMessage.html = marked.parse(lastMessage.text);
+          lastMessage.text = message.text;
+          lastMessage.partial = false;
         }
       } else {
         messages.value.push(message);
       }
-    }
-    nextTick(() => {
-      if (messageBox.value) {
-        messageBox.value.scrollTop = messageBox.value.scrollHeight;
+
+      // Take the last message again, and parse it, if it looks like markdown
+      lastMessage = getLastMessage({ actor: 'BOT' });
+      if (lastMessage && lastMessage.text &&
+        (lastMessage.text.includes('* ') || lastMessage.text.includes('**'))) {
+        lastMessage.html = marked.parse(lastMessage.text);
       }
-    });
+    } else {
+      messages.value.push(message);
+    }
   }
+  nextTick(() => {
+    if (messageBox.value) {
+      messageBox.value.scrollTop = messageBox.value.scrollHeight;
+    }
+  });
   const eventName = (actor === 'USER') ? 'message sent' : 'message received';
   saveStateToSession();
   logger.info({ message: value.text, event: eventName, payload: fullPayload || value }, `${actor.toLowerCase()}-message`);
@@ -1342,6 +1339,7 @@ function getWebStreamEventListeners() {
       // Send the first message, if any, but only if the message stack is empty
       if (agentConfig.initialMessage != '' && messages.value.length == 0) {
         sessionInput(agentConfig.initialMessage);
+        if (!agentConfig.hideInitialMessage) insertMessage('USER', { text: agentConfig.initialMessage });
       }
       window.dispatchEvent(new CustomEvent('ces-messenger-connected'));
     },
