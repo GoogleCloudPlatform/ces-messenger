@@ -121,11 +121,18 @@ window.addEventListener('ces-messenger-loaded', () => {
 
 Registers a client-side function that can be called by the agent as a tool. The callback function will receive the tool arguments as an object.
 
+*Note: use the Integration section in your tool, in the CES console, to get a sample of this code with your tool identifiers already prefilled.*
+
 ```javascript
 window.addEventListener('ces-messenger-loaded', () => {
   const cesm = document.querySelector('ces-messenger');
 
-  cesm.registerClientSideFunction('display_picture', (args) => {
+  cesm.registerClientSideFunction(
+    {
+      toolName: 'projects/my-project/locations/us-east1/apps/1234-5678/tools/abcd-efgh',
+      toolDisplayName: 'display_picture'
+    },
+    (args) => {
     Logger.log("Agent wants to display a picture of:", args);
     const pictureHtml = `
       <div>
