@@ -1618,6 +1618,19 @@ async function refreshToken() {
     if (data.access_token && data.expiry) {
       accessToken.value = data.access_token;
       accessTokenExpiresAt.value = typeof data.expiry === 'number' && !isNaN(data.expiry) ? data.expiry : (new Date(data.expiry)).getTime();
+
+      // update the token of the RunSession bidiStrem (since it needs the token on
+      // every request, and never disconnects)
+      if (bidiStream instanceof HttpRequestResponseStream) bidiStream.connect(accessToken.value);
+
+      // register a timer to refresh the token 10 minutes before it expires
+      if (accessTokenExpiresAt.value) {
+        const refreshDelay = accessTokenExpiresAt.value - Date.now() - AUTH_TOKEN_LEEWAY * 1000;
+        if (refreshDelay > 0) {
+          setTimeout(refreshToken, refreshDelay);
+        }
+      }
+
       localStorage.accessToken = accessToken.value;
       localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
       Logger.debug('Token received from token broker:', data);
