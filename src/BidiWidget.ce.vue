@@ -251,7 +251,7 @@ import { FunctionToolHandler } from '@/function-tools';
 import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
-import { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS } from '@/defaults.js';
+import { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/defaults.js';
 import { marked } from 'marked';
 
 // Import all icons so we can inline them
@@ -526,6 +526,8 @@ let reconnectButtonText = 'Start conversation';
 
 // Web stream and Audio Context
 let bidiStream = null;
+let reconnectAttempts = 0;
+let reconnectTimeout = null;
 
 // Utilities
 let router = null; // TODO: see is this is needed
@@ -1353,6 +1355,7 @@ function getWebStreamEventListeners() {
         if (!agentConfig.hideInitialMessage) insertMessage('USER', { text: agentConfig.initialMessage });
       }
       window.dispatchEvent(new CustomEvent('ces-messenger-connected'));
+      reconnectAttempts = 0;
     },
     // eslint-disable-next-line no-unused-vars
     onClose: (event) => {
@@ -1361,7 +1364,17 @@ function getWebStreamEventListeners() {
 
       if (disconnectReason.value === 'UNKNOWN') {
         Logger.warn('BidiStream disconnected.');
-        //insertErrorMessage('The API disconnected this session as soon as we attempted to contact it. Please double check your settings and try again.');
+        // Try to reconnect a few times before giving up
+        if (reconnectAttempts < RECONNECT_MAX_ATTEMPS) {
+          reconnectAttempts++;
+          const reconnectDelay = RECONNECT_DELAY*(RECONNECT_DELAY_MULTIPLIER*reconnectAttempts);
+          Logger.log(`Attempting reconnection in ${reconnectDelay/1000} seconds...`);
+          if (reconnectTimeout) clearTimeout(reconnectTimeout);
+          reconnectTimeout = setTimeout(reconnect, reconnectDelay);
+        } else {
+          Logger.warn('Maximum number of reconnect attempts reached.');
+          reconnectAttempts = 0;
+        }
       }
       window.dispatchEvent(new CustomEvent('ces-messenger-disconnected', { detail: { disconnectReason: disconnectReason.value } }));
     },

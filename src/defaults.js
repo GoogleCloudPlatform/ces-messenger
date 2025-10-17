@@ -27,6 +27,10 @@ if (devEndpointHttp) {
   CES_HTTP_ENDPOINTS.dev = devEndpointHttp;
 }
 
+export const RECONNECT_DELAY = 500;
+export const RECONNECT_DELAY_MULTIPLIER = 2;
+export const RECONNECT_MAX_ATTEMPS = 5;
+
 const WIDGET_ATTRIBUTES = {
   apiUri: {
     type: String
