@@ -1271,6 +1271,14 @@ function closeChatPanel() {
 };
 
 function reconnect() {
+  // If last attempt was in error, clear the local storage
+  if (messages.value.length > 0 && messages.value[messages.value.length - 1].msg_type === 'ERROR_MESSAGE') {
+    Logger.log('Clearing local storage before next connection attempt.');
+    if (bidiAdaptor) bidiAdaptor.endSession();
+    clearStorage({ clearAuthentication: true });
+    messages.value = [];
+  }
+
   const start = () => {
     needsUserInteractionToResume.value = false;
     startConversation();
