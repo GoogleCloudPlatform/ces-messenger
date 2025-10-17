@@ -1,0 +1,5 @@
+{
+  "text": "Click me",
+  "onclick": "console.log('Button clicked'); sessionInput('Thank you. Can you show me again the list of demos?')",
+  "image": "https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png"
+}

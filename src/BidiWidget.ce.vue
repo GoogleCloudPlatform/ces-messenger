@@ -248,12 +248,11 @@ import { AudioStreamerFactory } from '@/audio/audio-streamer.js';
 import { AudioRecorder } from '@/audio/audio-recorder.js';
 import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor, RunSessionAdaptor } from '@/bidi/bidi-adaptors.js';
 import { FunctionToolHandler } from '@/function-tools';
-import { googleLogin, getAuthButtonHtml } from '@/auth.js';
+import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
 import { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS } from '@/defaults.js';
 import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 
 // Import all icons so we can inline them
 import iconChat from './assets/img/icon-chat.svg?raw';
@@ -715,13 +714,7 @@ function liveUserUtterance() {
 // --------------------- Message stack ---------------------
 
 function insertMessage(actor, value, fullPayload) {
-
-  // Make sure html messages do not contain malicious code
-  if (value.payload?.html) {
-    value.payload.html = DOMPurify.sanitize(value.payload.html, {
-      ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src']
-    });
-  }
+  const messageId = getNextMessageId();
 
   // Remove any previous message with the same HTML payload
   if (value.replace) {
@@ -774,7 +767,16 @@ function insertMessage(actor, value, fullPayload) {
   const eventName = (actor === 'USER') ? 'message sent' : 'message received';
   saveStateToSession();
   logger.info({ message: value.text, event: eventName, payload: fullPayload || value }, `${actor.toLowerCase()}-message`);
+  return messageId;
 };
+
+function insertRichTextMessage(templateId, context) {
+  context.cesMessageId = getNextMessageId();
+  const rendered = renderTemplate(templateId, context);
+  if (!rendered) return false;
+  insertMessage('BOT', { payload: { html: rendered } });
+  return true;
+}
 
 function insertErrorMessage(message, clearMessages = false) {
   if (agentConfig.showErrorMessages) {
@@ -787,6 +789,10 @@ function insertErrorMessage(message, clearMessages = false) {
       }, msg_type: 'ERROR_MESSAGE'
     });
   }
+}
+
+function getNextMessageId() {
+  return `${bidiAdaptor.sessionId}-${messages.value.length + 1}`;
 }
 
 function clearErrorMessages() {
@@ -826,6 +832,7 @@ function sessionInput(input) {
     bidiStream.sendMessage(JSON.stringify(message));
   }
 };
+window.kite.sessionInput = sessionInput;
 
 function sendConfig() {
   if (bidiStream instanceof HttpRequestResponseStream) return;
@@ -877,8 +884,12 @@ const startConversation = async () => {
   // If no valid authentication found, add the auth button to the message stack
   if (!(await authenticate())) {
     if (agentConfig.oauthClientId) {
-      const buttonHtml = getAuthButtonHtml(agentConfig.oauthClientId);
-      insertMessage('BOT', { payload: { html: buttonHtml }, msg_type: 'AUTH_BUTTON', replace: true });
+      const context = {
+        image: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
+        text: 'Sign-in with Google',
+        onclick: `window.kite.googleOauthSignIn('${getNextMessageId()}')`
+      }
+      insertRichTextMessage('cesm_button', context);
       return;
     }
   }
@@ -1454,20 +1465,42 @@ function getWebStreamEventListeners() {
             }
 
           } else if (message.type === 'TOOL_CALL') {
-            const toolResponse = await processToolCallMessage(message.toolCall);
-            // send tool response back to agent HERE
-            Logger.log('Tool responded with payload', { toolResponse });
-            const marshalledMessage = bidiAdaptor.marshallMessage({
-              type: 'TOOL_RESPONSE',
-              payload: toolResponse
-            });
-            if (toolMessageHold) {
-              Logger.log('Holding tool response message', marshalledMessage);
-              toolMessageQueue.value.push(marshalledMessage);
-              saveStateToSession();
-            } else {
-              Logger.log('Returning tool response message to the backend', marshalledMessage);
+            const toolId = {
+              toolName: message.toolCall.tool,
+              toolDisplayName: message.toolCall.displayName
+            };
+            // If the tool is not registered but has 'template_id' and 'context' args, insert a rich text message
+            if (!functionToolHandler.isRegisteredFunction(toolId) && message.toolCall?.args &&
+                message.toolCall.args.template_id && message.toolCall.args.context) {
+              Logger.debug(`Inserting rich text message with template "${message.toolCall.args.template_id}"`);
+              const toolResponse = message.toolCall;
+              toolResponse.response = {status: 'success'};
+              if (!insertRichTextMessage(message.toolCall.args.template_id, message.toolCall.args.context)) {
+                toolResponse.response.status = 'error';
+              }
+              delete toolResponse.args;
+              const marshalledMessage = bidiAdaptor.marshallMessage({
+                type: 'TOOL_RESPONSE',
+                payload: toolResponse
+              });
               bidiStream.sendMessage(marshalledMessage);
+            } else {
+              Logger.debug('Calling client function tool', message.toolCall);
+              const toolResponse = await processToolCallMessage(message.toolCall);
+              // send tool response back to agent HERE
+              Logger.debug('Tool responded with payload', { toolResponse });
+              const marshalledMessage = bidiAdaptor.marshallMessage({
+                type: 'TOOL_RESPONSE',
+                payload: toolResponse
+              });
+              if (toolMessageHold) {
+                Logger.debug('Holding tool response message', marshalledMessage);
+                toolMessageQueue.value.push(marshalledMessage);
+                saveStateToSession();
+              } else {
+                Logger.debug('Returning tool response message to the backend', marshalledMessage);
+                bidiStream.sendMessage(marshalledMessage);
+              }
             }
           } else if (message.type === 'CONTROL_SIGNAL' && message.agentDisconnect) {
             if (message.disconnectReason) {
@@ -1621,11 +1654,9 @@ async function refreshToken() {
 }
 
 // eslint-disable-next-line no-unused-vars
-function googleOauthSignIn(element) {
+function googleOauthSignIn(messageId) {
   redirecting.value = true;
   googleLogin(continueLogin, agentConfig.oauthClientId);
-  // Remove the auth button after clicking
-  messages.value = messages.value.filter(message => message.msg_type !== 'AUTH_BUTTON');
 }
 // Add the function to window.kite, so the component can find it
 window.kite.googleOauthSignIn = googleOauthSignIn;
@@ -1639,6 +1670,16 @@ function signOut() {
   accessTokenExpiresAt.value = null;
 }
 
+async function googleLogin(callback, clientId) {
+  // eslint-disable-next-line no-undef
+  google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    //scope: 'https://www.googleapis.com/auth/ces https://www.googleapis.com/auth/dialogflow',
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    callback: callback
+  }).requestAccessToken();
+}
+
 async function continueLogin(response) {
   accessToken.value = response.access_token;
   const expirationSeconds = response.expires_in;
@@ -1646,6 +1687,7 @@ async function continueLogin(response) {
   accessTokenExpiresAt.value = now.getTime() + (expirationSeconds * 1000);
   localStorage.accessToken = accessToken.value;
   localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
+  messages.value = messages.value.filter(message => message.msg_type !== 'AUTH_BUTTON');
   startConversation();
 }
 
@@ -1660,9 +1702,11 @@ defineExpose({
   holdToolResponses,
   flushToolResponses,
   insertMessage,
+  insertRichTextMessage,
   pauseConversation,
   registerClientSideFunction,
   registerHook,
+  registerTemplate,
   sessionInput,
   setAccessToken,
   setQueryParameters,

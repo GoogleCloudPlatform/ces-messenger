@@ -1,0 +1,16 @@
+{
+  "agentMessage": "Please, select the product you would like to return:",
+  "header": "Recently purchased items",
+  "options": [
+    {
+      "title": "Mid-Century Modern Sofa",
+      "subtitle": "$759.99",
+      "image": "https://storage.googleapis.com/aiestaran-ps-web-component-demo/order_details/order_sofa.png"
+    },
+    {
+      "title": "Premium Interior Paint",
+      "subtitle": "$75.99",
+      "image": "https://storage.googleapis.com/aiestaran-ps-web-component-demo/order_details/order_paint.png"
+    }
+  ]
+}

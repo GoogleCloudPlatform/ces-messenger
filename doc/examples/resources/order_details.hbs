@@ -1,0 +1,231 @@
+<style>
+  .order-details-container {
+    font-family: "Work Sans", "Noto Sans", sans-serif;
+    border-radius: 0.5rem;
+    position: relative;
+    width: 100%;
+    background-color: #F5F5F5;
+    overflow-x: hidden;
+    padding: 8px 0px;
+  }
+
+  .order-details-container p {
+    margin-block-end: 8px;
+    margin-block-start: 8px;
+  }
+
+  .order-details-container .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #fff;
+    padding: 0.5rem 1rem 0.25rem;
+  }
+
+  .order-details-container .header-title {
+    flex: 1;
+    text-align: center;
+    color: #3A86FF;
+    font-size: 1.125rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .order-details-container .header-placeholder {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+  }
+
+  .order-details-container .card {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    padding: 0px 1rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  .order-details-container .info-section {
+    padding: 0.5rem 1rem 0.25rem;
+  }
+
+  .order-details-container .info-row {
+    display: flex;
+    justify-content: space-between;
+    column-gap: 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .order-details-container .info-label {
+    color: #6b7280;
+  }
+
+  .order-details-container .info-value {
+    color: #111418;
+    text-align: right;
+  }
+
+  .order-details-container .info-value.total {
+    color: #3A86FF;
+    font-weight: 700;
+  }
+
+  .order-details-container .status-section {
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .order-details-container .status-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+
+  .order-details-container .status-label {
+    color: #111418;
+    font-weight: 500;
+  }
+
+  .order-details-container .status-value {
+    color: #FF7F11;
+    font-weight: 700;
+  }
+
+  .order-details-container .progress-bar-bg {
+    border-radius: 9999px;
+    background-color: #e5e7eb;
+  }
+
+  .order-details-container .progress-bar {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: #FF7F11;
+  }
+
+  .order-details-container .products-section {
+    padding: 0.5rem 1rem 0.25rem;
+  }
+
+  .order-details-container .products-title {
+    color: #111418;
+    font-size: 1.125rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .order-details-container .products-list {
+    flex: 1 1 0%;
+    overflow-y: auto;
+    padding: 0 1rem 0.5rem;
+  }
+
+  .order-details-container .product-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 72px;
+    margin-top: 0.75rem;
+  }
+
+  .order-details-container .product-item:first-child {
+    margin-top: 0;
+  }
+
+  .order-details-container .product-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .order-details-container .product-image {
+    width: 4rem;
+    height: 4rem;
+    aspect-ratio: 1 / 1;
+    border-radius: 0.5rem;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .order-details-container .product-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .order-details-container .product-name {
+    color: #111418;
+    font-weight: 500;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .order-details-container .product-quantity {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .order-details-container .product-price {
+    flex-shrink: 0;
+    color: #111418;
+  }
+</style>
+
+<div class="order-details-container">
+  <div class="info-section">
+    <div class="card">
+      <div class="info-row">
+        <p class="info-label">Order Number</p>
+        <p class="info-value">{{orderNumber}}</p>
+      </div>
+      <div class="info-row">
+        <p class="info-label">Order Date</p>
+        <p class="info-value">{{orderDate}}</p>
+      </div>
+      <div class="info-row">
+        <p class="info-label">Total Amount</p>
+        <p class="info-value total">{{totalAmount}}</p>
+      </div>
+    </div>
+  </div>
+  <div class="status-section">
+    <div class="status-header">
+      <p class="status-label">Delivery Status</p>
+      <p class="status-value">{{deliveryStatus}}</p>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar" style="width: {{deliveryProgress}};"></div>
+    </div>
+  </div>
+  <div class="products-section">
+    <h3 class="products-title">Products</h3>
+  </div>
+  <div class="products-list">
+    {{#each products}}
+    <div class="card product-item">
+      <div class="product-info">
+        <div class="product-image" style="background-image: url(&quot;{{this.imageUrl}}&quot;);"></div>
+        <div class="product-details">
+          <p class="product-name">{{this.name}}</p>
+          <p class="product-quantity">Quantity: {{this.quantity}}</p>
+        </div>
+      </div>
+      <div class="product-price">
+        <p>{{this.price}}</p>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+</div>

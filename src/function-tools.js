@@ -33,6 +33,10 @@ class FunctionToolHandler {
     Logger.log('Registered function', { toolId, functionRef });
   }
 
+  isRegisteredFunction(toolId) {
+    return this.#getFunction(toolId) !== undefined;
+  }
+
   async runFunctionTool(toolCallId, toolId, toolInput) {
     const registeredFunctionInfo = this.#getFunction(toolId);
     if (registeredFunctionInfo) {

@@ -1,0 +1,21 @@
+{
+  "orderNumber": "#HO-173456",
+  "orderDate": "June 5, 2024",
+  "totalAmount": "$235.98",
+  "deliveryStatus": "Shipped",
+  "deliveryProgress": "66%",
+  "products": [
+    {
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuAFfBVPC2llg4fKnBBu8A9ZYI3WHGAPHfWIDSsCdL7Qlgeu9tb7xfTGjQLAP53uLUPwNpOprGbLuoKcAaWy4U1hY9WQLZlYHmo9CpTyVQzGMfPBYKf1SqttAgitB6b_rCXUp9qUXZrLAiSpccCU8UaY6escT_XNIGf63_1e1_hF-urJ67j4Ci8u4SUSUOhdsB1QTRmFhyy8f67yndVd9jhLH28MWoQ57nYNfD5jELa8V58mV0WglHDM7b-tRg1h9x4OmAc5Kl9pQFA",
+      "name": "Mid-Century Modern Sofa",
+      "quantity": 1,
+      "price": "$159.99"
+    },
+    {
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuBofDFuXK28qH0kxEXnuFF_jKeP4Kl2DPZ7kJoijiQWcm_JtLmb_T5l7l3uSYNrc1wZZE1BVg9jxSELvs4z0jikk4QO_ziQRYrOSwScg3WkHBYw2HpYSFRgU4iTdM3RJOQg6NBj9S5szBtE_-CBz8A_Dcrqqkh460zPO5sfGc6rJc0n2PVcsXxV3-3eGYJvcbDZSLC1KyQOSIEYKrG4a7FovalFWzuk2WGm5x8rB7TU_ja9fW8L8Bx4T7s05FLmF0DGBXEj5FfjXPs",
+      "name": "Premium Interior Paint",
+      "quantity": 2,
+      "price": "$75.99"
+    }
+  ]
+}

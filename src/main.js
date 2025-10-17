@@ -6,7 +6,6 @@
 
 import { defineCustomElement } from 'vue';
 import BidiWidget from '@/BidiWidget.ce.vue';
-import { CustomButtonElement } from './custom-elements.js';
 import { version } from './defaults.js';
 import { Logger } from '@/logger.js';
 
@@ -18,5 +17,3 @@ customElements.define('ces-messenger', element);
 if (typeof window.kite === 'undefined') {
   window.kite = {};
 }
-
-export { CustomButtonElement };

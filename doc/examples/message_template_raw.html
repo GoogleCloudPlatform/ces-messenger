@@ -1,0 +1,68 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Raw Custom Template</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="explanation">
+    <h2>Raw Custom Template</h2>
+    <p>This example demonstrates how to use raw <a href="https://handlebarsjs.com/" target="_blank">Handlebars</a> templates (<code>.hbs</code> files) to display rich content in the chat widget. When the agent needs to display a custom UI, it can call a tool and provide a template identifier and the context data to populate it.</p>
+    <p>To use raw templates, you must include the full Handlebars compiler library in your page, as the template needs to be compiled in the browser at runtime. This example loads it from a CDN.</p>
+    <p>The page waits for the <code>ces-messenger-loaded</code> event, fetches the raw template content, compiles it using <code>Handlebars.compile()</code>, and then registers the resulting template function with the chat widget using the <code>registerTemplate()</code> method on the <code>&lt;ces-messenger&gt;</code> component.</p>
+    <p>While this method is convenient for development, for production environments it is recommended to use <a href="./message_template_precompiled.html">precompiled templates</a> for better performance and security. To precompile templates, you can use the Handlebars CLI. First, install it: <code>npm install handlebars -g</code>. Then, to compile a directory of templates, run: <code>handlebars templates/ -f custom_templates.js -e hbs</code>.</p>
+  </div>
+
+  <ces-messenger
+    deployment-id="projects/connectors-incubation-test-1/locations/us-east1/apps/ac2b1314-b3d1-4473-8cea-b49add9e44a8/deployments/014c3be7-2919-4d61-b641-fd5cf39e1e99"
+    chat-title="Template gallery"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="show me the the demo with ID 'custom_demo'"
+    hide-initial-message="false"
+    audio-input-mode="NONE"
+    auto-open-chat="true"
+    show-error-messages="true"></ces-messenger>
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+<script>
+  window.addEventListener('ces-messenger-loaded', () => {
+
+    const cesMessenger = document.querySelector('ces-messenger');
+
+    // load the file order_details.hbs located in the same folder as this file
+    fetch('./resources/order_details.hbs')
+      .then((response) => response.text())
+      .then((templateString) => {
+        const template = Handlebars.compile(templateString);
+        cesMessenger.registerTemplate('order_details', template);
+      });
+  });
+</script>
+</html>

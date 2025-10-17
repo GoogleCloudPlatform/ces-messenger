@@ -290,6 +290,16 @@ The ces-messenger component handles session state to provide a persistent experi
   * **Session ID**: To renew the session ID without clearing the chat history, you can use the `endSession()` function. This will send a signal to the agent to terminate the current session and a new session ID will be generated for subsequent interactions.
 
 
+## Message templates
+
+`ces-messenger` supports rich, interactive messages through a powerful templating system based on the Handlebars engine. This allows an agent to send not just plain text, but also structured content with interactive elements like buttons, lists, forms, and custom layouts.
+
+The agent can invoke a client-side function to render a specific template with dynamic data. The widget comes with a set of built-in templates for common use cases and also allows you to create and register your own custom templates.
+
+This functionality enables more dynamic and interactive user experiences, where the agent can display complex UI elements directly within the conversation.
+
+For a complete guide on how to use built-in templates, create custom templates, and handle interactions, see the [Rich Message Templates documentation](doc/message_templates.md).
+
 ## Examples
 
 ### Sending a message when connected
@@ -338,4 +348,3 @@ python3 -m http.server 5173
 ```
 
 Then, with your browser, open http://localhost:5173/.
-

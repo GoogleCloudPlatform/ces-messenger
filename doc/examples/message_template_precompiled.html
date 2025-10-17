@@ -1,0 +1,66 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Precompiled custom template</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="explanation">
+    <h2>Precompiled custom template</h2>
+    <p>This example demonstrates how to use precompiled <a href="https://handlebarsjs.com/" target="_blank">Handlebars</a> templates to display rich content in the chat widget. When the agent needs to display a custom UI, it can call a tool and provide a template identifier and the context data to populate it.</p>
+    <p>Using precompiled templates is the recommended approach. They are JavaScript functions that can be loaded and registered with the widget. The main advantages over raw templates are:</p>
+    <ul>
+      <li><b>Performance:</b> Precompiled templates render faster because they don't need to be compiled in the browser.</li>
+      <li><b>Security:</b> They avoid issues with strict Content Security Policies (CSP) because they don't rely on <code>eval()</code> or <code>new Function()</code> for runtime compilation.</li>
+      <li><b>Smaller Footprint:</b> You don't need to include the full Handlebars compiler library on your page.</li>
+    </ul>
+    <p>To precompile a Handlebars template, you can use the Handlebars CLI. First, install Handlebars globally: <code>npm install handlebars -g</code>. To compile a single file, run: <code>handlebars my_template.hbs -f my_precompiled_template.js</code>. If you have multiple templates in a directory (e.g., <code>/templates</code>), you can compile them all into a single file by specifying the directory path and the template file extension: <code>handlebars templates/ -f custom_templates.js -e hbs</code>.</p>
+    <p>The page waits for the <code>ces-messenger-loaded</code> event, then dynamically loads a JavaScript file (<code>custom_templates.js</code>) which contains the precompiled template. The precompiled script automatically registers the template with Handlebars, making it available to the widget without needing to call <code>registerTemplate()</code> manually.</p>
+  </div>
+
+  <ces-messenger
+    deployment-id="projects/connectors-incubation-test-1/locations/us-east1/apps/ac2b1314-b3d1-4473-8cea-b49add9e44a8/deployments/014c3be7-2919-4d61-b641-fd5cf39e1e99"
+    chat-title="Template gallery"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="show me the the demo with ID 'custom_demo'"
+    hide-initial-message="false"
+    audio-input-mode="NONE"
+    auto-open-chat="true"
+    show-error-messages="true"></ces-messenger>
+</body>
+
+<script>
+  window.addEventListener('ces-messenger-loaded', () => {
+    // Dynamically load the custom_templates.js script
+    const script = document.createElement('script');
+    script.src = './resources/custom_templates.js';
+    document.head.appendChild(script);
+  });
+</script>
+</html>

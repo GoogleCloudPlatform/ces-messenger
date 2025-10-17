@@ -10,9 +10,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint --ext .js,.ts,.vue --fix src/"
+    "lint": "eslint --ext .js,.ts,.vue --fix src/",
+    "precompile": "node script/precompile-templates.js"
   },
   "dependencies": {
+    "handlebars": "^4.7.7",
     "eventemitter3": "^5.0.1",
     "marked": "^16.1.1",
     "random-id": "^1.0.4",

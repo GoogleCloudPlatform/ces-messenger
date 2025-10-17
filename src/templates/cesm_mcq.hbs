@@ -1,0 +1,134 @@
+<style>
+  .cesm-mcq {
+    font-family: "Work Sans", "Noto Sans", sans-serif;
+    border-radius: 0.5rem;
+    position: relative;
+    width: 100%;
+    background-color: #F5F5F5;
+    overflow-x: hidden;
+    margin-block-start: 10px;
+    margin-block-end: 10px;
+  }
+
+  .cesm-mcq .card {
+    background-color: #fff;
+    border-radius: 0.5rem;
+    padding: 0.25rem 1rem 0.25rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    cursor: pointer;
+  }
+
+ .cesm-mcq .card:hover {
+    background-color: #eee;
+  }
+
+  .cesm-mcq .mcq-header {
+    padding: 0.5rem 1rem 0rem;
+  }
+
+  .cesm-mcq .mcq-title {
+    color: #111418;
+    font-size: 1.125rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .cesm-mcq .options-list {
+    flex: 1 1 0%;
+    overflow-y: auto;
+    padding: 0.6rem;
+  }
+
+  .cesm-mcq .option-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.75rem;
+  }
+
+  .cesm-mcq .option-item:first-child {
+    margin-top: 0;
+  }
+
+  .cesm-mcq .option-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .cesm-mcq .option-image {
+    width: 4rem;
+    height: 4rem;
+    aspect-ratio: 1 / 1;
+    border-radius: 0.5rem;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .cesm-mcq .option-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+.cesm-mcq .option-details p {
+    margin-block-start: 5px;
+    margin-block-end: 5px;
+}
+
+.cesm-mcq .option-title {
+    color: #111418;
+    font-weight: 500;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .cesm-mcq .option-subtitle {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+</style>
+
+{{#if agentMessage}}{{agentMessage}}{{/if}}
+<div class="cesm-mcq">
+  {{#if header}}
+  <div class="mcq-header mcq-title">{{header}}</div>
+  {{/if}}
+  <div class="options-list">
+    {{#each options}}
+    <div class="card option-item"
+      {{#if this.onclick}}
+        onclick="{{this.onclick}}"
+      {{else}}
+        {{#if this.userMessage}}
+          onclick="window.kite.sessionInput('{{this.userMessage}}')"
+        {{else}}
+          onclick="window.kite.sessionInput('{{this.title}}')"
+        {{/if}}
+      {{/if}}        
+      > 
+      <div class="option-info">
+        {{#if this.image}}
+        <div class="option-image" style="background-image: url(&quot;{{this.image}}&quot;);"></div>
+        {{/if}}
+        <div class="option-details">
+          <p class="option-title">{{this.title}}</p>
+          {{#if this.subtitle}}
+          <p class="option-subtitle">{{this.subtitle}}</p>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+</div>
