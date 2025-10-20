@@ -808,28 +808,41 @@ function sendQueryParams() {
   if (queryVars && Object.keys(queryVars).length > 0) {
     const message = bidiAdaptor.marshallMessage(
       { type: 'VARS', payload: queryVars });
-    if (message) bidiStream.sendMessage(JSON.stringify(message));
+    if (message) sessionInput(message);
     queryVars = {};
   }
 }
 
 function sessionInput(input) {
-  const inputs = typeof input === 'string' ? { text: input } : input;
+  // Try to identify known marshalled objets
+  let marshalled = undefined;
+  if (typeof input === 'object' && input.realtimeInput) {
+    marshalled = input;
+  } else {
+    // If we receive a string, we consider this to be a plain text message
+    const inputs = typeof input === 'string' ? { text: input } : input;
 
-  const unmarshalled = { type: 'SESSION_INPUT', payload: {} };
-  if (inputs.text && inputs.text.length > 0) {
-    unmarshalled.payload.text = inputs.text;
+    // See if we have received anyunmarshalled data
+    const unmarshalled = { type: 'SESSION_INPUT', payload: {} };
+    if (inputs.text && inputs.text.length > 0) {
+      unmarshalled.payload.text = inputs.text;
+    }
+    if (inputs.images && inputs.images.length > 0) {
+      unmarshalled.payload.images = inputs.images;
+    }
+    if (inputs.vars && Object.keys(inputs.vars).length > 0) {
+      unmarshalled.payload.vars = inputs.vars;
+    } else if (queryVars && Object.keys(queryVars).length > 0) {
+      unmarshalled.payload.vars = JSON.parse(JSON.stringify(queryVars));
+      queryVars = {};
+    }
+    if (Object.keys(unmarshalled.payload).length > 0) {
+      marshalled = bidiAdaptor.marshallMessage(unmarshalled);
+    }
   }
-  if (inputs.images && inputs.images.length > 0) {
-    unmarshalled.payload.images = inputs.images;
-  }
-  if (inputs.vars && Object.keys(inputs.vars).length > 0) {
-    unmarshalled.payload.vars = inputs.vars;
-  } else if (queryVars && Object.keys(queryVars).length > 0) {
-    unmarshalled.payload.vars = JSON.parse(JSON.stringify(queryVars));
-    queryVars = {};
-  }
-  const marshalled = bidiAdaptor.marshallMessage(unmarshalled);
+
+  if (!marshalled) marshalled = input;
+
   const messages = Array.isArray(marshalled) ? marshalled : [marshalled];
   for (const message of messages) {
     bidiStream.sendMessage(JSON.stringify(message));
@@ -850,7 +863,7 @@ function sendConfig() {
   Logger.log(`Sending config message: ${JSON.stringify(bidiAdaptor.getConfigMessage(agentConfig, null))}`);
 
   // Send the config message. If using websockets, the accessToken will be added to the message
-  bidiStream.sendMessage(JSON.stringify(bidiAdaptor.getConfigMessage(agentConfig, configToken)));
+  sessionInput(bidiAdaptor.getConfigMessage(agentConfig, configToken));
 };
 
 // --------------------- Client-side function tools ---------------------
@@ -929,7 +942,7 @@ const startConversation = async () => {
           logger.info({ message: '<audio>', event: 'audio sent', payload: message }, 'user-message');
           // Send the message over the WebSocket
           sendQueryParams();
-          bidiStream.sendMessage(JSON.stringify(message));
+          sessionInput(message);
         }
       });
     }
@@ -948,7 +961,7 @@ function pauseConversation() {
 function endSession() {
   const sessionEndMessage = bidiAdaptor.endSession();
   if (sessionEndMessage) {
-    bidiStream.sendMessage(JSON.stringify(sessionEndMessage));
+    sessionInput(sessionEndMessage);
   }
 };
 
@@ -1338,7 +1351,7 @@ function flushToolResponses() {
     Logger.log('sending held messages:', toolMessageQueue.value);
     while (toolMessageQueue.value.length > 0) {
       const message = toolMessageQueue.value.shift();
-      bidiStream.sendMessage(JSON.stringify(message));
+      sessionInput(message);
     }
   }
   toolMessageHold = false;
@@ -1511,7 +1524,7 @@ function getWebStreamEventListeners() {
                 type: 'TOOL_RESPONSE',
                 payload: toolResponse
               });
-              bidiStream.sendMessage(marshalledMessage);
+              sessionInput(marshalledMessage);
             } else {
               Logger.debug('Calling client function tool', message.toolCall);
               const toolResponse = await processToolCallMessage(message.toolCall);
@@ -1527,7 +1540,7 @@ function getWebStreamEventListeners() {
                 saveStateToSession();
               } else {
                 Logger.debug('Returning tool response message to the backend', marshalledMessage);
-                bidiStream.sendMessage(marshalledMessage);
+                sessionInput(marshalledMessage);
               }
             }
           } else if (message.type === 'CONTROL_SIGNAL' && message.agentDisconnect) {
