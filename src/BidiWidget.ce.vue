@@ -249,6 +249,7 @@ import { AudioRecorder } from '@/audio/audio-recorder.js';
 import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor, RunSessionAdaptor } from '@/bidi/bidi-adaptors.js';
 import { FunctionToolHandler } from '@/function-tools';
 import { renderTemplate, registerTemplate } from '@/templates/index.js';
+import { DomHintTracker } from '@/dom-hints.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
 import { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/defaults.js';
@@ -1735,6 +1736,10 @@ function registerHook(eventName, callback) {
   cesmHooks[eventName] = callback;
 }
 
+function createDomHintTracker(config) {
+  return new DomHintTracker({ ...config, setQueryParameters });
+}
+
 defineExpose({
   clearStorage,
   disconnectWebStream,
@@ -1744,6 +1749,7 @@ defineExpose({
   insertMessage,
   insertRichTextMessage,
   pauseConversation,
+  createDomHintTracker,
   registerClientSideFunction,
   registerHook,
   registerTemplate,

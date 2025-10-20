@@ -75,6 +75,12 @@ See the detailed [authentication documentation](doc/authentication.md).
 | `theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
 | `size` | The size of the chat widget. | `small`, `large` | `large` |
 
+### DOM Hints for Agent Context
+
+The messenger includes a "DOM Hints" feature that allows you to provide your agent with real-time contextual information from your webpage's DOM (e.g., shopping cart contents, form data). This gives the agent "eyes" on the page, allowing it to see what the user sees and have more relevant conversations.
+
+For detailed documentation and examples, see [DOM Hints for Agent Context](./doc/dom_hints.md).
+
 ## Exposed Functions
 
 You can interact with the `ces-messenger` component programmatically using JavaScript.

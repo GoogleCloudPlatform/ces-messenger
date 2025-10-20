@@ -34,3 +34,6 @@ coverage
 *.tsbuildinfo
 .firebase*
 tmp
+
+# deployment scripts
+script/*.sh
