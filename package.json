@@ -33,6 +33,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.5.0",
     "prettier": "^3.6.2",
-    "vite": "^7.0.6"
+    "vite": "^7.1.11"
   }
 }
