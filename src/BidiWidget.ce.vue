@@ -1368,7 +1368,8 @@ function getWebStreamEventListeners() {
     // eslint-disable-next-line no-unused-vars
     onClose: (event) => {
       if (!(['USER_REQUESTED', 'AGENT_REQUESTED', 'HARD_HANDOVER', 'AUTHENTICATION_ERROR'].includes(disconnectReason.value))) disconnectReason.value = 'UNKNOWN';
-      isConnected.value = false;
+
+      if (!bidiStream.connectionless) isConnected.value = false;
 
       if (disconnectReason.value === 'UNKNOWN') {
         Logger.warn('BidiStream disconnected.');
@@ -1388,8 +1389,13 @@ function getWebStreamEventListeners() {
     },
     onError: (error) => {
       Logger.error('BidiStream error:', error);
-      isConnected.value = false;
-      bidiStream = null;
+      insertErrorMessage(`BidiStream error: ${error.message}`);
+      insertMessage('BOT', { text: 'I\'m sorry, I couldn\'t send your message. Please try again.' });
+
+      if (!bidiStream.connectionless) {
+        isConnected.value = false;
+        bidiStream = null;
+      }
     },
     onMessage: async (inMessage) => {
       try {

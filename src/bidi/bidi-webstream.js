@@ -21,6 +21,7 @@ class WebchannelBidiStream {
     }
 
     this.agentId = agentId;
+    this.connectionless = false;
     this.listenerProvider = listenerProvider;
     this.channel = null;
     this.transportFactory = createWebChannelTransport();
@@ -176,6 +177,7 @@ class WebsocketBidiStream {
     }
 
     this.agentId = agentId;
+    this.connectionless = false;
     this.listenerProvider = listenerProvider;
     this.websocket = null;
     this.listeners = null; // Initialized when first needed
@@ -314,6 +316,7 @@ class HttpRequestResponseStream {
     }
 
     this.agentId = agentId;
+    this.connectionless = true;
     this.listenerProvider = listenerProvider;
     this.accessToken = null;
     this.listeners = null; // Initialized when first needed
