@@ -843,6 +843,12 @@ function sessionInput(input) {
 
   if (!marshalled) marshalled = input;
 
+  // If in connectionless mode (RunSession), check that the token is still valid
+  // before sending a message
+  if (bidiStream.connectionless && !isTokenValid()) {
+    refreshToken();
+  }
+
   const messages = Array.isArray(marshalled) ? marshalled : [marshalled];
   for (const message of messages) {
     bidiStream.sendMessage(JSON.stringify(message));
@@ -1662,15 +1668,7 @@ async function refreshToken() {
 
       // update the token of the RunSession bidiStrem (since it needs the token on
       // every request, and never disconnects)
-      if (bidiStream instanceof HttpRequestResponseStream) bidiStream.connect(accessToken.value);
-
-      // register a timer to refresh the token 10 minutes before it expires
-      if (accessTokenExpiresAt.value) {
-        const refreshDelay = accessTokenExpiresAt.value - Date.now() - AUTH_TOKEN_LEEWAY * 1000;
-        if (refreshDelay > 0) {
-          setTimeout(refreshToken, refreshDelay);
-        }
-      }
+      if (bidiStream instanceof HttpRequestResponseStream) bidiStream.accessToken = accessToken.value;
 
       localStorage.accessToken = accessToken.value;
       localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
