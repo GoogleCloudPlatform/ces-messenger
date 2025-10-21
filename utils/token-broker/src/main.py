@@ -198,7 +198,7 @@ def refresh_token():
         # Create a JSON payload with the token and its expiry.
         CURRENT_TOKEN = {
             "access_token": access_token,
-            "expiry": expiry.isoformat() if expiry else None,
+            "expiry": int(expiry.timestamp() * 1000) if expiry else None,
         }
         CURRENT_TOKEN_TIMESTAMP = time.time()
         return True
