@@ -814,9 +814,20 @@ function sendQueryParams() {
 }
 
 function sessionInput(input) {
+  if (input === undefined || input === null) {
+    Logger.warn('ignoring invalid sessionInput message:', input);
+    return;
+  }
+  // Ensure input is either a string or an object (already checked for null/undefined)
+  if (typeof input !== 'string' && typeof input !== 'object') {
+    Logger.warn('ignoring invalid sessionInput message: input must be a string or an object, received:', typeof input, input);
+    return;
+  }
+
+
   // Try to identify known marshalled objets
   let marshalled = undefined;
-  if (typeof input === 'object' && input.realtimeInput) {
+  if (typeof input === 'object' && (input.realtimeInput || input.config)) {
     marshalled = input;
   } else {
     // If we receive a string, we consider this to be a plain text message
@@ -1389,7 +1400,7 @@ function getWebStreamEventListeners() {
     onClose: (event) => {
       if (!(['USER_REQUESTED', 'AGENT_REQUESTED', 'HARD_HANDOVER', 'AUTHENTICATION_ERROR'].includes(disconnectReason.value))) disconnectReason.value = 'UNKNOWN';
 
-      if (!bidiStream.connectionless) isConnected.value = false;
+      if (bidiStream && !bidiStream.connectionless) isConnected.value = false;
 
       if (disconnectReason.value === 'UNKNOWN') {
         Logger.warn('BidiStream disconnected.');
