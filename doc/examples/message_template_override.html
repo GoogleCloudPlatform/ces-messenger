@@ -38,7 +38,7 @@
       <li>Client side template rendering is done using Client Functions.</li>
       <li>A Client Function is defined on the agent with the ID of the template to use (<code>template_id</code>), and the context (<code>context</code>) as arguments.</li>
       <li>There is no need to register the function on the browser. If the chat widget sees a function call with the above mentioned arguments, but the function has not been registered on the browser, it will apply the template as-is.</li>
-      <li>If, for any reason, the page needs to alter the contents of the context before it is rendered, it can register the function, and call the <code>insertRichTextMessage(template_id, context)</code> function to display the message.</li>
+      <li>If, for any reason, the page needs to alter the contents of the context before it is rendered, it can register the function, and call the <code>insertRichMessage(template_id, context)</code> function to display the message.</li>
   </div>
 
   <ces-messenger
@@ -65,7 +65,7 @@ window.addEventListener('ces-messenger-loaded', () => {
         args.context.text = 'Button text modified!';
         args.context.onclick = 'window.alert("This way you can modify the context before rendering the message.")';
       }
-      cesMessenger.insertRichTextMessage(args.template_id, args.context);
+      cesMessenger.insertRichMessage(args.template_id, args.context);
       return Promise.resolve({status: 'success'});
     },
   );

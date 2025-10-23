@@ -54,6 +54,7 @@
           <li
             v-for="(message, index) in messages"
             :key="index"
+            :data-message-index="index"
             :class="{
               'from-user': message.actor === 'USER',
               'from-bot': message.actor === 'BOT',
@@ -61,8 +62,7 @@
               'last': message === messages[messages.length - 1],
               'last-rich-content': index === lastRichContentMessageIndex,
               'is-displayed-in-call': index === lastBotMessageIndex
-            }"
-          >
+            }">
             <span v-if="message.text && !message.html">{{ message.text }}</span>
             <span
               v-if="message.html"
@@ -71,6 +71,7 @@
             <span
               v-if="message.payload?.html"
               v-html="message.payload.html"
+              @click="handleMessageClick($event, message, index)"
             />
           </li>
           <li
@@ -773,11 +774,14 @@ function insertMessage(actor, value, fullPayload) {
   return messageId;
 };
 
-function insertRichTextMessage(templateId, context) {
+function insertRichMessage(templateId, context, contentType=undefined, renderOptions=undefined) {
   context.cesMessageId = getNextMessageId();
   const rendered = renderTemplate(templateId, context);
   if (!rendered) return false;
-  insertMessage('BOT', { payload: { html: rendered } });
+  const payload = { html: rendered, templateId: templateId, context: context};
+  if (contentType) payload.contentType = contentType;
+  if (renderOptions) payload.renderOptions = renderOptions;
+  insertMessage('BOT', { payload: payload });
   return true;
 }
 
@@ -864,7 +868,6 @@ async function sessionInput(input) {
     bidiStream.sendMessage(JSON.stringify(message));
   }
 };
-window.kite.sessionInput = sessionInput;
 
 function sendConfig() {
   if (bidiStream instanceof HttpRequestResponseStream) return;
@@ -921,7 +924,7 @@ const startConversation = async () => {
         text: 'Sign-in with Google',
         onclick: `window.kite.googleOauthSignIn('${getNextMessageId()}')`
       }
-      insertRichTextMessage('cesm_button', context);
+      insertRichMessage('cesm_button', context);
       return;
     }
   }
@@ -1373,6 +1376,105 @@ function flushToolResponses() {
   toolMessageHold = false;
 }
 
+// --------------------- Message templates ---------------------
+
+const richMessageHandlers = [
+  {
+    template: 'cesm_button',
+    event: 'click',
+    handler: buttonTemplateHandler
+  },
+  {
+    template: 'cesm_mcq',
+    event: 'click',
+    handler: listTemplateHandler
+  }
+]
+
+function registerRichMessageHandler(templateId, handler, contentType=undefined, eventName='click') {
+  const index = richMessageHandlers.findIndex(h =>
+    h.template === templateId &&
+    h.event === eventName &&
+    h.contentType === contentType
+  );
+
+  const newHandler = { template: templateId, event: eventName, handler };
+  if (contentType) {
+    newHandler.contentType = contentType;
+  }
+
+  if (index !== -1) {
+    richMessageHandlers[index] = newHandler;
+  } else {
+    richMessageHandlers.push(newHandler);
+  }
+}
+
+function getRichTextHandler(templateId, eventName, contentType) {
+  let candidate = undefined;
+  for (const handler of richMessageHandlers) {
+    if (handler.template === templateId && handler.event === eventName) {
+      if (handler.contentType !== undefined) {
+        // An exact match was found for this templateId/eventName/contentType combination
+        if (handler.contentType.toLowerCase()  === contentType) return handler.handler;
+      } else {
+        // Fall back to the default handler for this templateId/eventName combination
+        candidate = handler.handler;
+      }
+    }
+  }
+  if (candidate === undefined){
+    Logger.log(`no '${eventName}' handler found for template '${templateId}'`);
+  }
+  return candidate;
+}
+
+function handleMessageClick(event, message, index) {
+  if (!message.payload) return;
+
+  const clickedElement = event.target;
+  const templateId = message.payload.templateId;
+  const contentType = message.payload.contentType !== undefined ? message.payload.contentType.toLowerCase() : '';
+  const handler = getRichTextHandler(templateId, 'click', contentType);
+
+  if (handler) {
+    const result = handler(message, clickedElement);
+    // renderOptions.onclick overrides action provided by handler
+    let action = message.payload.renderOptions?.onclick || result.action;
+    // only possible action today is 'delete'
+    if (action === 'delete') {
+      messages.value.splice(index,1);
+      saveStateToSession();
+    }
+  }
+}
+
+function buttonTemplateHandler(message, clickedElement) {
+  const context = message.payload?.context;
+  if (context) {
+    const sendMessage = context.userMessage || context.text;
+    if (!context.mute) insertMessage('BOT', { text: sendMessage });
+    if (sendMessage) sessionInput(sendMessage);
+  }
+  return { action: 'delete'}
+}
+
+function listTemplateHandler(message, clickedElement) {
+  const context = message.payload?.context;
+  const optionItem = clickedElement.closest('.option-item');
+
+  if (optionItem && context) {
+    const index = optionItem.dataset.index;
+    const selectedOption = context.options[index];
+    if (selectedOption) {
+      const messageToSend = selectedOption.userMessage || selectedOption.title;
+      insertMessage('USER', { text: messageToSend });
+      sessionInput(messageToSend);
+    }
+  }
+  return { action: 'delete'}
+}
+
 // --------------------- Bidi Webstream ---------------------
 
 function getWebStreamEventListeners() {
@@ -1532,7 +1634,10 @@ function getWebStreamEventListeners() {
               Logger.debug(`Inserting rich text message with template "${message.toolCall.args.template_id}"`);
               const toolResponse = message.toolCall;
               toolResponse.response = {status: 'success'};
-              if (!insertRichTextMessage(message.toolCall.args.template_id, message.toolCall.args.context)) {
+              if (!insertRichMessage(message.toolCall.args.template_id,
+                                         message.toolCall.args.context,
+                                         message.toolCall.args.content_type,
+                                         message.toolCall.args.render_options)) {
                 toolResponse.response.status = 'error';
               }
               delete toolResponse.args;
@@ -1720,8 +1825,6 @@ function googleOauthSignIn(messageId) {
   redirecting.value = true;
   googleLogin(continueLogin, agentConfig.oauthClientId);
 }
-// Add the function to window.kite, so the component can find it
-window.kite.googleOauthSignIn = googleOauthSignIn;
 
 function signOut() {
   // TODO: invalidate OAuth token
@@ -1767,11 +1870,13 @@ defineExpose({
   endSession,
   holdToolResponses,
   flushToolResponses,
+  getRichTextHandler,
   insertMessage,
-  insertRichTextMessage,
+  insertRichMessage,
   pauseConversation,
   createDomHintTracker,
   registerClientSideFunction,
+  registerRichMessageHandler,
   registerHook,
   registerTemplate,
   sessionInput,
@@ -1779,6 +1884,12 @@ defineExpose({
   setQueryParameters,
   signOut
 });
+
+// Global functions
+window.kite.sessionInput = sessionInput;
+window.kite.googleOauthSignIn = googleOauthSignIn;
+window.kite.insertMessage = insertMessage;
+window.kite.insertRichMessage = insertRichMessage;
 
 </script>
 <style scoped>

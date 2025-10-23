@@ -106,16 +106,10 @@
   {{/if}}
   <div class="options-list">
     {{#each options}}
-    <div class="card option-item"
+    <div class="card option-item" data-index="{{@index}}"
       {{#if this.onclick}}
         onclick="{{this.onclick}}"
-      {{else}}
-        {{#if this.userMessage}}
-          onclick="window.kite.sessionInput('{{this.userMessage}}')"
-        {{else}}
-          onclick="window.kite.sessionInput('{{this.title}}')"
-        {{/if}}
-      {{/if}}        
+      {{/if}}
       > 
       <div class="option-info">
         {{#if this.image}}

@@ -78,7 +78,7 @@ echo "   - Role granted successfully."
 
 # --- 3. Deploy Cloud Run Service ---
 echo
-echo "3. Deploying Cloud Run service '$SERVICE_NAME' fron source folder '$SOURCE_DIR'..."
+echo "3. Deploying Cloud Run service '$SERVICE_NAME' from source folder '$SOURCE_DIR'..."
 
 ENV_VARS="WEBSOCKET_SERVER_PORT=8080,OAUTH_SCOPES=$OAUTH_SCOPES"
 
