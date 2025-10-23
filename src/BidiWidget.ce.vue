@@ -421,7 +421,7 @@ if (agentConfig.oauthClientId) {
 // Constants
 const bidiAdaptor = AdaptorFactory.createAdaptor(agentConfig);
 const redirecting = ref(false);
-const AUTH_TOKEN_LEEWAY = 600; // 10 minutes
+const AUTH_TOKEN_LEEWAY = 300000; // 5 minutes
 
 // Setting up Audio objects, if needed
 let audioRecorder = null;
@@ -813,7 +813,7 @@ function sendQueryParams() {
   }
 }
 
-function sessionInput(input) {
+async function sessionInput(input) {
   if (input === undefined || input === null) {
     Logger.warn('ignoring invalid sessionInput message:', input);
     return;
@@ -823,7 +823,6 @@ function sessionInput(input) {
     Logger.warn('ignoring invalid sessionInput message: input must be a string or an object, received:', typeof input, input);
     return;
   }
-
 
   // Try to identify known marshalled objets
   let marshalled = undefined;
@@ -857,7 +856,7 @@ function sessionInput(input) {
   // If in connectionless mode (RunSession), check that the token is still valid
   // before sending a message
   if (bidiStream.connectionless && !isTokenValid()) {
-    refreshToken();
+    await refreshToken();
   }
 
   const messages = Array.isArray(marshalled) ? marshalled : [marshalled];
@@ -975,7 +974,7 @@ function pauseConversation() {
   }
 };
 
-function endSession() {
+async function endSession() {
   const sessionEndMessage = bidiAdaptor.endSession();
   if (sessionEndMessage) {
     sessionInput(sessionEndMessage);
@@ -1011,7 +1010,7 @@ function isVoiceActive(base64Data) {
 }
 
 // --------------------- Keyboard input ---------------------
-function submitUserInput() {
+async function submitUserInput() {
   const manualUtteranceText = currentUserInput.value;
   if (manualUtteranceText || imgUploadQueue.value.length > 0) {
     if (manualUtteranceText.startsWith('VARS=')) {
@@ -1040,7 +1039,7 @@ function submitUserInput() {
       insertMessage('USER', { text: manualUtteranceText });
       insertLastUtterance();
     }
-    sessionInput({ text: manualUtteranceText, images: images });
+    await sessionInput({ text: manualUtteranceText, images: images });
     currentUserInput.value = '';
     nextTick(resetTextareaHeight);
     window.dispatchEvent(new CustomEvent('ces-user-input-entered', { detail: { input: manualUtteranceText } }));
