@@ -1443,7 +1443,13 @@ function handleMessageClick(event, message, index) {
     let action = message.payload.renderOptions?.onclick || result.action;
     // only possible action today is 'delete'
     if (action === 'delete') {
-      messages.value.splice(index,1);
+      // Also delete the agent confirmation message, if any
+      let messagesToDelete = 1;
+      if (messages.value.length > index + 1 &&
+          messages.value[index+1].actor === 'BOT') {
+        messagesToDelete++;
+      }
+      messages.value.splice(index, messagesToDelete);
       saveStateToSession();
     }
   }
