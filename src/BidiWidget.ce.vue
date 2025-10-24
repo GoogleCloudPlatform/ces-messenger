@@ -1451,7 +1451,8 @@ function handleMessageClick(event, message, index) {
 
 function buttonTemplateHandler(message, clickedElement) {
   const context = message.payload?.context;
-  if (context) {
+  // If an onclick action was defined in the context, use it instead of sending a message
+  if (context && !context.onclick) {    
     const sendMessage = context.userMessage || context.text;
     if (!context.mute) insertMessage('BOT', { text: sendMessage });
     if (sendMessage) sessionInput(sendMessage);
@@ -1466,7 +1467,8 @@ function listTemplateHandler(message, clickedElement) {
   if (optionItem && context) {
     const index = optionItem.dataset.index;
     const selectedOption = context.options[index];
-    if (selectedOption) {
+    // If an onclick action was defined in the context, use it instead of sending a message
+    if (selectedOption && !selectedOption.onclick) {
       const messageToSend = selectedOption.userMessage || selectedOption.title;
       insertMessage('USER', { text: messageToSend });
       sessionInput(messageToSend);
