@@ -245,6 +245,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch, nextTick, useTemplateRef } from 'vue';
 import { WebchannelBidiStream, WebsocketBidiStream, HttpRequestResponseStream } from '@/bidi/bidi-webstream.js';
+import { authenticate, setAccessToken, signOut, isTokenValid, refreshToken, googleOauthSignIn, accessToken } from '@/authentication.js';
 import { AudioStreamerFactory } from '@/audio/audio-streamer.js';
 import { AudioRecorder } from '@/audio/audio-recorder.js';
 import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor, RunSessionAdaptor } from '@/bidi/bidi-adaptors.js';
@@ -253,7 +254,7 @@ import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { DomHintTracker } from '@/dom-hints.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
-import { getAgentConfig, WIDGET_ATTRIBUTES, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
+import { agentConfigInstance, WIDGET_ATTRIBUTES, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
 import { marked } from 'marked';
 
 // Import all icons so we can inline them
@@ -283,7 +284,9 @@ const cesmHooks = {};
 
 // Agent configuration
 const props = defineProps(WIDGET_ATTRIBUTES);
-const agentConfig = getAgentConfig(props);
+agentConfigInstance.initialize(props);
+const agentConfig = agentConfigInstance.config;
+const messages = agentConfigInstance.messages;
 
 let currentUserInput = ref('');
 let chatUiStatus = ref(agentConfig.autoOpenChat ? 'expanded' : 'collapsed');
@@ -339,8 +342,6 @@ if (agentConfig.oauthClientId) {
 
 // Constants
 const bidiAdaptor = AdaptorFactory.createAdaptor(agentConfig);
-const redirecting = ref(false);
-const AUTH_TOKEN_LEEWAY = 300000; // 5 minutes
 
 // Setting up Audio objects, if needed
 let audioRecorder = null;
@@ -406,15 +407,10 @@ if (agentConfig.audioInputMode !== 'NONE') {
   };
 }
 
-// Authentication state
-const accessToken = ref(null);
-const accessTokenExpiresAt = ref(null);
-
 // Reactive Properties
 const isConnected = ref(false);
 const isResumedSession = ref(false);
 const receivedTranscript = ref(null);
-const messages = ref([]);
 const imgUploadQueue = ref([]);
 let toolMessageHold = false;
 const toolMessageQueue = ref([]);
@@ -779,6 +775,9 @@ async function sessionInput(input) {
   // before sending a message
   if (bidiStream.connectionless && !isTokenValid()) {
     await refreshToken();
+    // update the token of the RunSession bidiStrem (since it needs the token on
+    // every request, and never disconnects)
+    if (bidiStream instanceof HttpRequestResponseStream) bidiStream.accessToken = accessToken.value;
   }
 
   const messages = Array.isArray(marshalled) ? marshalled : [marshalled];
@@ -1703,123 +1702,6 @@ function disconnectWebStream(reason) {
 
 // --------------------- Authentication ---------------------
 
-function setAccessToken(token) {
-  accessToken.value = token;
-  localStorage.accessToken = token;
-  accessTokenExpiresAt.value = localStorage.accessTokenExpiresAt = Date.now() + 10000;
-}
-
-function isTokenValid() {
-  return accessToken.value != null && accessTokenExpiresAt.value != null && accessTokenExpiresAt.value > (Date.now() + AUTH_TOKEN_LEEWAY);
-}
-
-async function authenticate() {
-  // handle tokens from local storage
-  if (localStorage.accessToken) {
-    accessToken.value = localStorage.accessToken;
-    accessTokenExpiresAt.value = localStorage.accessTokenExpiresAt ? localStorage.accessTokenExpiresAt : null;
-  }
-
-  // Current token seems valid
-  if (isTokenValid()) {
-    return true;
-  }
-
-  // If we have a token broker configured, go get the token from there
-  if (agentConfig.tokenBrokerUrl) {
-    return await refreshToken();
-    // Clean up local storage and give up. Authentication will need to be done via OAuth
-  } else {
-    signOut();
-    return false;
-  }
-}
-
-async function refreshToken() {
-  if (!agentConfig.tokenBrokerUrl) return false;
-
-  try {
-    const response = await fetch(agentConfig.tokenBrokerUrl, { credentials: 'include' });
-    const data = await response.json();
-    if (data.access_token && data.expiry) {
-      accessToken.value = data.access_token;
-      accessTokenExpiresAt.value = typeof data.expiry === 'number' && !isNaN(data.expiry) ? data.expiry : (new Date(data.expiry)).getTime();
-
-      // update the token of the RunSession bidiStrem (since it needs the token on
-      // every request, and never disconnects)
-      if (bidiStream instanceof HttpRequestResponseStream) bidiStream.accessToken = accessToken.value;
-
-      localStorage.accessToken = accessToken.value;
-      localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
-      Logger.debug('Token received from token broker:', data);
-      return true;
-    } else {
-      Logger.error('No token received from token broker:', data);
-      return false;
-    }
-  } catch (error) {
-    Logger.error('Error fetching impersonated token:', error.message);
-    // Attempt to differentiate between CORS and other network errors.
-    if (error instanceof TypeError && error.message === 'Failed to fetch') {
-      try {
-        // Send a no-cors request to check for reachability.
-        // This will succeed if the server is up, even if it's a CORS error.
-        await fetch(agentConfig.tokenBrokerUrl, { mode: 'no-cors' });
-        // If the above line does not throw, the server is reachable. The error is likely CORS.
-        // Although it could also be a 404, or other HTTP error.
-        insertErrorMessage(`The token broker at <code>${agentConfig.tokenBrokerUrl}</code> may have a CORS configuration issue. 
-          <ol style="margin-left: 20px; font-size: smaller; padding: 0">
-            <li>Ensure the token broker URL is correct, and responds with a 200 status code.</li>
-            <li>Ensure the current origin (<code>${window.location.origin}</code>) is included in your token broker's <code>AUTHORIZED_ORIGINS</code> environment variable.</li>
-          </ol>`, true);
-      } catch (reachabilityError) {
-        // The no-cors request also failed, so the server is likely unreachable.
-        insertErrorMessage(`The token broker at <code>${agentConfig.tokenBrokerUrl}</code> is unreachable. Please verify the URL and ensure the service is running.`, true);
-      }
-    } else {
-      // For other types of errors, show a generic message.
-      insertErrorMessage(`An error occurred while trying to contact the token broker at <code>${agentConfig.tokenBrokerUrl}</code>.`, true);
-    }
-    return false;
-  }
-}
-
-// eslint-disable-next-line no-unused-vars
-function googleOauthSignIn(messageId) {
-  redirecting.value = true;
-  googleLogin(continueLogin, agentConfig.oauthClientId);
-}
-
-function signOut() {
-  // TODO: invalidate OAuth token
-  // TODO: complete with other auth types when available
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('accessTokenExpiresAt');
-  accessToken.value = null;
-  accessTokenExpiresAt.value = null;
-}
-
-async function googleLogin(callback, clientId) {
-  // eslint-disable-next-line no-undef
-  google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    //scope: 'https://www.googleapis.com/auth/ces https://www.googleapis.com/auth/dialogflow',
-    scope: 'https://www.googleapis.com/auth/cloud-platform',
-    callback: callback
-  }).requestAccessToken();
-}
-
-async function continueLogin(response) {
-  accessToken.value = response.access_token;
-  const expirationSeconds = response.expires_in;
-  const now = new Date();
-  accessTokenExpiresAt.value = now.getTime() + (expirationSeconds * 1000);
-  localStorage.accessToken = accessToken.value;
-  localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
-  messages.value = messages.value.filter(message => message.msg_type !== 'AUTH_BUTTON');
-  startConversation();
-}
-
 function registerHook(eventName, callback) {
   cesmHooks[eventName] = callback;
 }
@@ -1854,6 +1736,7 @@ window.kite.sessionInput = sessionInput;
 window.kite.googleOauthSignIn = googleOauthSignIn;
 window.kite.insertMessage = insertMessage;
 window.kite.insertRichMessage = insertRichMessage;
+window.kite.insertErrorMessage = insertErrorMessage;
 
 </script>
 <style scoped>

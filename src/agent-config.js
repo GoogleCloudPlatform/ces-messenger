@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ref } from 'vue';
+
 const version = import.meta.env.VITE_VERSION || 'live';
 const devEndpointWebchannel = import.meta.env.VITE_DEV_ENDPOINT_WEBCHANNEL;
 const devEndpointHttp = import.meta.env.VITE_DEV_ENDPOINT_HTTP;
@@ -167,95 +169,106 @@ const WIDGET_DEFAULTS = {
   voice: 'en-US-Chirp3-HD-Aoede',
 }
 
-function getAgentConfig(props) {
+class AgentConfig {
+  constructor() {
+    if (AgentConfig.instance) {
+      return AgentConfig.instance;
+    }
+    this.config = {};
+    this.messages = ref([]);
+    AgentConfig.instance = this;
+  }
 
-  const agentConfig = {};
+  initialize(props) {
+    const agentConfig = {};
 
-  for (let [key, value] of Object.entries(props)) {
-    // Convert booleans and numbers
-    if (value && value !== '') {
-      if (Array.isArray(WIDGET_ATTRIBUTES[key]['type'])) {
-        if (WIDGET_ATTRIBUTES[key]['type'].includes(Boolean) && typeof value !== 'boolean') {
-          if (['yes', 'true', '1'].includes(value.toLowerCase())) value = true;
-          else if (['no', 'false', '0'].includes(value.toLowerCase())) value = false;
-        }
-        if (WIDGET_ATTRIBUTES[key]['type'].includes(Number) && typeof value !== 'number') {
-          if (!isNaN(parseInt(value))) {
-            value = parseInt(value);
-          } else {
-            continue;
+    for (let [key, value] of Object.entries(props)) {
+      // Convert booleans and numbers
+      if (value && value !== '') {
+        if (Array.isArray(WIDGET_ATTRIBUTES[key]['type'])) {
+          if (WIDGET_ATTRIBUTES[key]['type'].includes(Boolean) && typeof value !== 'boolean') {
+            if (['yes', 'true', '1'].includes(value.toLowerCase())) value = true;
+            else if (['no', 'false', '0'].includes(value.toLowerCase())) value = false;
+          }
+          if (WIDGET_ATTRIBUTES[key]['type'].includes(Number) && typeof value !== 'number') {
+            if (!isNaN(parseInt(value))) {
+              value = parseInt(value);
+            } else {
+              continue;
+            }
           }
         }
+        agentConfig[key] = value;
       }
-      agentConfig[key] = value;
-    }
 
-    // translate legacy modes
-    if (key === 'audioInputMode') {
-      if (agentConfig[key] === 'OPEN_MIC') {
-        agentConfig[key] = 'DEFAULT_ON';
-      } else if (agentConfig[key] === 'PUSH_TO_TALK_BUTTON') {
-        agentConfig[key] = 'DEFAULT_OFF';
-      } else if (agentConfig[key] === 'PUSH_TO_TALK_DISCREET') {
-        agentConfig[key] = 'SPACE_BAR_TO_TALK';
+      // translate legacy modes
+      if (key === 'audioInputMode') {
+        if (agentConfig[key] === 'OPEN_MIC') {
+          agentConfig[key] = 'DEFAULT_ON';
+        } else if (agentConfig[key] === 'PUSH_TO_TALK_BUTTON') {
+          agentConfig[key] = 'DEFAULT_OFF';
+        } else if (agentConfig[key] === 'PUSH_TO_TALK_DISCREET') {
+          agentConfig[key] = 'SPACE_BAR_TO_TALK';
+        }
       }
     }
-  }
 
-  // Apply defaults from WIDGET_DEFAULTS to agentConfig
-  for (let [key, value] of Object.entries(WIDGET_DEFAULTS)) {
-    if (agentConfig[key] === undefined) {
-      agentConfig[key] = value;
-    }
-  }
-
-  // Map deprecated parameters to new ones if not already defined
-  const deprecatedParamMappings = {
-    bidiSize: 'size',
-    bidiStyleId: 'modality',
-    bidiThemeId: 'themeId'
-  };
-
-  for (let [key, value] of Object.entries(deprecatedParamMappings)) {
-    if (agentConfig[key] !== undefined) {
-      if (agentConfig[value] === undefined || agentConfig[value] === WIDGET_DEFAULTS[value]) {
-        agentConfig[value] = agentConfig[key];
+    // Apply defaults from WIDGET_DEFAULTS to agentConfig
+    for (let [key, value] of Object.entries(WIDGET_DEFAULTS)) {
+      if (agentConfig[key] === undefined) {
+        agentConfig[key] = value;
       }
-      delete agentConfig[key];
     }
-  }
 
-  // support legacy websocketProxy parameter
-  if (agentConfig.websocketProxy && !agentConfig.apiUri) {
-    agentConfig.apiUri = agentConfig.websocketProxy;
-  }
+    // Map deprecated parameters to new ones if not already defined
+    const deprecatedParamMappings = {
+      bidiSize: 'size',
+      bidiStyleId: 'modality',
+      bidiThemeId: 'themeId'
+    };
 
-  if (typeof agentConfig.audioInputMode === 'string') {
-    agentConfig.audioInputMode = agentConfig.audioInputMode.toUpperCase();
-  }
-
-  let websocketUri = undefined;
-  if (agentConfig.apiUri &&
-    (agentConfig.apiUri.startsWith('wss://') || agentConfig.apiUri.startsWith('ws://'))) {
-    agentConfig.websocketUri = agentConfig.apiUri;
-  }
-
-  if (agentConfig.cesUrl?.includes('console-dev') || agentConfig.deploymentId?.includes('console-dev')) {
-    agentConfig.environment = 'dev';
-  }
-
-  if (agentConfig.deploymentId) {
-    if (agentConfig.deploymentId.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+\/deployments\/[^/]+$/)) {
-      agentConfig.deploymentId = agentConfig.deploymentId.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+\/deployments\/[^/]+$/)[0];
-      agentConfig.cesUrl = agentConfig.deploymentId;
-    } else if (!agentConfig.deploymentId.includes('/') && agentConfig.cesUrl?.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+$/)) {
-      agentConfig.cesUrl = agentConfig.deploymentId = `${agentConfig.cesUrl.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+$/)[0]}/deployments/${agentConfig.deploymentId}`;
-    } else {
-      throw new Error(`Invalid deployment ID: ${agentConfig.deploymentId}. Expected format: projects/<PROJECT_ID>/locations/<REGION_ID>/apps/<AGENT_ID>/deployments/<DEPLOYMENT_ID>.`);
+    for (let [key, value] of Object.entries(deprecatedParamMappings)) {
+      if (agentConfig[key] !== undefined) {
+        if (agentConfig[value] === undefined || agentConfig[value] === WIDGET_DEFAULTS[value]) {
+          agentConfig[value] = agentConfig[key];
+        }
+        delete agentConfig[key];
+      }
     }
-  }
 
-  return agentConfig;
+    // support legacy websocketProxy parameter
+    if (agentConfig.websocketProxy && !agentConfig.apiUri) {
+      agentConfig.apiUri = agentConfig.websocketProxy;
+    }
+
+    if (typeof agentConfig.audioInputMode === 'string') {
+      agentConfig.audioInputMode = agentConfig.audioInputMode.toUpperCase();
+    }
+
+    if (agentConfig.apiUri &&
+      (agentConfig.apiUri.startsWith('wss://') || agentConfig.apiUri.startsWith('ws://'))) {
+      agentConfig.websocketUri = agentConfig.apiUri;
+    }
+
+    if (agentConfig.cesUrl?.includes('console-dev') || agentConfig.deploymentId?.includes('console-dev')) {
+      agentConfig.environment = 'dev';
+    }
+
+    if (agentConfig.deploymentId) {
+      if (agentConfig.deploymentId.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+\/deployments\/[^/]+$/)) {
+        agentConfig.deploymentId = agentConfig.deploymentId.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+\/deployments\/[^/]+$/)[0];
+        agentConfig.cesUrl = agentConfig.deploymentId;
+      } else if (!agentConfig.deploymentId.includes('/') && agentConfig.cesUrl?.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+$/)) {
+        agentConfig.cesUrl = agentConfig.deploymentId = `${agentConfig.cesUrl.match(/projects\/[^/]+\/locations\/[^/]+\/apps\/[^/]+$/)[0]}/deployments/${agentConfig.deploymentId}`;
+      } else {
+        throw new Error(`Invalid deployment ID: ${agentConfig.deploymentId}. Expected format: projects/<PROJECT_ID>/locations/<REGION_ID>/apps/<AGENT_ID>/deployments/<DEPLOYMENT_ID>.`);
+      }
+    }
+
+    this.config = agentConfig;
+  }
 }
 
-export { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS, cesUrlPattern, version, getAgentConfig};
+const agentConfigInstance = new AgentConfig();
+
+export { WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS, cesUrlPattern, version, agentConfigInstance };
