@@ -836,7 +836,7 @@ async function sessionInput(input) {
     // If we receive a string, we consider this to be a plain text message
     const inputs = typeof input === 'string' ? { text: input } : input;
 
-    // See if we have received anyunmarshalled data
+    // See if we have received any unmarshalled data
     const unmarshalled = { type: 'SESSION_INPUT', payload: {} };
     if (inputs.text && inputs.text.length > 0) {
       unmarshalled.payload.text = inputs.text;
@@ -866,6 +866,28 @@ async function sessionInput(input) {
   const messages = Array.isArray(marshalled) ? marshalled : [marshalled];
   for (const message of messages) {
     bidiStream.sendMessage(JSON.stringify(message));
+
+    // Look for custom events to trigger
+    const inputs = message.inputs || [];
+    const eventsToSend = new Set();
+    const inputMapping = {
+      text: 'ces-text-sent',
+      image: 'ces-image-sent',
+      payload: 'ces-payload-sent',
+      toolResponses: 'ces-tool-response-sent'
+   }
+    for (const input of inputs) {
+      for (const [key, value] of Object.entries(inputMapping)) {
+        if (input[key]) {
+          eventsToSend.add(value);
+        }
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('ces-message-sent', { detail: message }));
+    for (const eventId of eventsToSend) {
+      window.dispatchEvent(new CustomEvent(eventId, { detail: message }));
+    }
   }
 };
 
@@ -1540,6 +1562,13 @@ function getWebStreamEventListeners() {
     onMessage: async (inMessage) => {
       try {
         let receivedMessages;
+        const eventsToSend = new Set();
+        const outputMapping = {
+          TEXT: 'ces-text-received',
+          TRANSCRIPT: 'ces-transcript-received',
+          PAYLOAD: 'ces-payload-received',
+          TOOL_CALL: 'ces-tool-call-received'
+      }        
 
         // Start by handling websockets disconnect messages that are independent from the API
         if (inMessage.connection_closed) {
@@ -1564,9 +1593,13 @@ function getWebStreamEventListeners() {
         }
 
         for (const message of receivedMessages) {
-
-          if (message.type != 'AUDIO' && !message.partial && message.type != 'TRANSCRIPT') {
-            Logger.log(`receivedMessage: ${JSON.stringify(message)}`);
+          if (message.type != 'AUDIO') {
+            eventsToSend.add('ces-message-received');
+            for (const [key, value] of Object.entries(outputMapping)) {
+              if (message.type === key) {
+                eventsToSend.add(value);
+              }
+            }
           }
 
           if (message.type === 'AUDIO') {
@@ -1688,6 +1721,11 @@ function getWebStreamEventListeners() {
               audioStreamer.stop();
             }
           }
+        }
+
+        // Trigger the custom events identified in this message
+        for (const eventId of eventsToSend) {
+          window.dispatchEvent(new CustomEvent(eventId, { detail: inMessage }));
         }
       } catch (error) {
         Logger.error('Error processing message:', error);

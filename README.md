@@ -269,6 +269,61 @@ Fired when there is an authentication error.
 
 Fired when the user sends a text message. The `event.detail` object contains the `input` string.
 
+### `ces-chat-open-changed`
+
+Fired when the chat panel is opened or closed. The `event.detail` object contains `{ isOpen: boolean }`.
+
+### Granular Message Events
+
+For more detailed tracking of the conversation flow, the component emits events for different types of messages being sent and received. The `event.detail` for these events contains the raw message object from the underlying API.
+
+#### Received Messages
+
+*   `ces-message-received`: Fired for any non-audio message received from the agent.
+*   `ces-text-received`: Fired when a text message is received.
+*   `ces-transcript-received`: Fired when a voice transcript is received.
+*   `ces-payload-received`: Fired when a generic payload is received.
+*   `ces-tool-call-received`: Fired when the agent calls a client-side tool.
+
+#### Sent Messages
+
+*   `ces-message-sent`: Fired for any message sent to the agent.
+*   `ces-text-sent`: Fired when a text message is sent.
+*   `ces-image-sent`: Fired when an image is sent.
+*   `ces-payload-sent`: Fired when a generic payload is sent.
+*   `ces-tool-response-sent`: Fired when a response from a client-side tool is sent back to the agent.
+
+### Subscribing to all events
+
+You can subscribe to all events to get a comprehensive log of the widget's activity.
+
+```javascript
+  const subscribedEvents = [
+    'ces-messenger-loaded',
+    'ces-user-input-entered',
+    'ces-chat-open-changed',
+    'ces-messenger-connected',
+    'ces-messenger-disconnected',
+    'ces-authentication-error',
+    'ces-message-received',
+    'ces-text-received',
+    'ces-transcript-received',
+    'ces-payload-received',
+    'ces-tool-call-received',
+    'ces-message-sent',
+    'ces-text-sent',
+    'ces-image-sent',
+    'ces-payload-sent',
+    'ces-tool-response-sent'
+  ];
+
+  subscribedEvents.forEach((event) => {
+    window.addEventListener(event, (e) => {
+      console.log(`Event received: ${e.type}. Detail: ${JSON.stringify(e.detail)}`);
+    });
+  });
+```
+
 ## Advanced: Event Listeners
 
 You can register callbacks for more granular control over the chat panel's behavior.
