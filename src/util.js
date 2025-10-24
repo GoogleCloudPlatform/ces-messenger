@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cesUrlPattern } from '@/defaults.js';
+import { cesUrlPattern } from '@/agent-config.js';
 
 function getAgentDetails(url) {
   const match = url.trim().match(cesUrlPattern);

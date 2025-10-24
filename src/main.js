@@ -6,7 +6,7 @@
 
 import { defineCustomElement } from 'vue';
 import BidiWidget from '@/BidiWidget.ce.vue';
-import { version } from './defaults.js';
+import { version } from './agent-config.js';
 import { Logger } from '@/logger.js';
 
 Logger.log('Starting the web component, version:', version);

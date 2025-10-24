@@ -9,7 +9,7 @@ import {
   WebChannel,
 } from '@firebase/webchannel-wrapper/webchannel-blob';
 import { Logger } from '@/logger.js';
-import { CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS } from '@/defaults.js';
+import { CES_WEBCHANNEL_ENDPOINTS, CES_HTTP_ENDPOINTS } from '@/agent-config.js';
 
 class WebchannelBidiStream {
   constructor(env, agentId, listenerProvider) {
