@@ -1480,7 +1480,8 @@ function getWebStreamEventListeners() {
       try {
         // Call the response-received hook if it exists as a function and the message is not audio
         if (typeof cesmHooks['response-received'] === 'function') {
-          if (inMessage.outputs || (inMessage.sessionOutput && inMessage.sessionOutput.audio === undefined)) {
+          // Ignore audio messages, sice they are too chatty
+          if (!(inMessage.sessionOutput && inMessage.sessionOutput.audio !== undefined)) {
             // The hook can cancel the message if it returns false
             if (!cesmHooks['response-received'](inMessage)) return;
           }

@@ -373,6 +373,21 @@ window.addEventListener('ces-messenger-loaded', () => {
 });
 ```
 
+Skip audio transcripts:
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerHook('response-received', (message) => {
+    if (message.recognitionResult) {
+      return false;
+    }1
+    return true;
+  });
+});
+```
+
 ## Session management
 
 The ces-messenger component handles session state to provide a persistent experience for the user within a browser session.
