@@ -324,13 +324,18 @@ You can subscribe to all events to get a comprehensive log of the widget's activ
   });
 ```
 
-## Advanced: Event Listeners
+## Advanced: Callback hooks
 
-You can register callbacks for more granular control over the chat panel's behavior.
+### `registerHook('hook-name', callback)`
 
-### `registerHook('before-chat-panel-close', callback)`
+You can register callbacks for more granular on certain operations in the widget. There are currently two hooks available:
 
-Registers a function to be called before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs. See an example in [doc/examples/panel_close_options.html](doc/examples/panel_close_options.html).
+*   `before-chat-panel-close`: Callec before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs. See an example in [doc/examples/panel_close_options.html](doc/examples/panel_close_options.html).
+*   `response-received`: Called whenever a non-audio message response is received from the agent. The argument is the message object received. This allows to make modifications to the received message, or skip the message altogether. If the callback hook returns `true`, the message processing will continue (with any modifications applied by the callback). If the callback returns `false`, the message will be skipped and no events will be fired about this message.
+
+### Examples
+
+Register a function to be called before the chat panel is closed. 
 
 ```javascript
 window.addEventListener('ces-messenger-loaded', () => {
@@ -338,6 +343,32 @@ window.addEventListener('ces-messenger-loaded', () => {
 
   cesm.registerHook('before-chat-panel-close', () => {
     return confirm('Are you sure you want to close the chat?');
+  });
+});
+```
+
+Skip messages containing certain words.
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerHook('response-received', (message) => {
+    const bannedWord = 'skipit';
+
+    // Bidi (text+audio) API
+    if (message.sessionOutput?.text && message.sessionOutput.text.toLowerCase().includes(bannedWord)) {
+      return false;
+    }
+    // HTTP API (text only)
+    if (message.outputs) {
+      for (const output of message.outputs) {
+        if (output.text && output.text.toLowerCase().includes(bannedWord)) {
+          return false;
+        }
+      }
+    }
+    return true;
   });
 });
 ```

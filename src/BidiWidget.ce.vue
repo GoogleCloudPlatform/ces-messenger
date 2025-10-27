@@ -254,7 +254,7 @@ import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { DomHintTracker } from '@/dom-hints.js';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
-import { agentConfigInstance, WIDGET_ATTRIBUTES, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
+import { agentConfigInstance, WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
 import { marked } from 'marked';
 
 // Import all icons so we can inline them
@@ -1478,6 +1478,14 @@ function getWebStreamEventListeners() {
     },
     onMessage: async (inMessage) => {
       try {
+        // Call the response-received hook if it exists as a function and the message is not audio
+        if (typeof cesmHooks['response-received'] === 'function') {
+          if (inMessage.outputs || (inMessage.sessionOutput && inMessage.sessionOutput.audio === undefined)) {
+            // The hook can cancel the message if it returns false
+            if (!cesmHooks['response-received'](inMessage)) return;
+          }
+        }
+
         let receivedMessages;
         const eventsToSend = new Set();
         const outputMapping = {

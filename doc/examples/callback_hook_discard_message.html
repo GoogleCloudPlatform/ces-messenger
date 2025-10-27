@@ -1,0 +1,82 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Intercepting received messages</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    code {
+      background-color: #eee;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>Intercepting received messages</h2>
+    <p>This example demonstrates how to use the <code>registerHook('response-received', callback)</code> method to intercept messages coming from the agent before they are displayed to the user.</p>
+    <p>The callback function receives the raw message object from the API. Inside the callback, you can inspect the message content and decide whether to allow it to be processed and displayed. If the callback returns <code>true</code>, the message is processed as usual. If it returns <code>false</code>, the message is discarded and will not appear in the chat history.</p>
+    <p>In this specific example, the hook checks if the message text contains the word "skipit". If it does, the message is logged to the console and then skipped by returning <code>false</code>.</p>
+    <p>To test this, you can configure your agent to send a message containing the word "skipit", and you will see that the message is not rendered in the chat widget.</p>
+  </div>
+
+<ces-messenger
+    deployment-id="projects/my-project-id/locations/us-east1/apps/2462faec-84d5-41f8-9df5-34a68b2d7dac/deployments/3baf3481-3c57-4d92-a7f0-1ffced3c9e3e"
+    chat-title="My demo chat bot"
+    token-broker-url="https://token-broker.example.com"
+    initial-message="hi!"
+    audio-input-mode="DEFAULT_OFF"
+    auto-open-chat="true"
+    size="large"
+    show-error-messages="true"></ces-messenger>
+
+  <!-- Custom logic -->
+  <script>
+  window.addEventListener('ces-messenger-loaded', () => {
+    const cesm = document.querySelector('ces-messenger');
+
+    cesm.registerHook('response-received', (message) => {
+      const bannedWord = 'skipit';
+
+      // Bidi (text+audio) API
+      if (message.sessionOutput?.text && message.sessionOutput.text.toLowerCase().includes(bannedWord)) {
+        console.log('Skipping message', message);
+        return false;
+      }
+      // HTTP API (text only)
+      if (message.outputs) {
+        for (const output of message.outputs) {
+          if (output.text && output.text.toLowerCase().includes(bannedWord)) {
+            console.log('Skipping message', message);
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+  });
+  </script>
+
+</body>
+
+</html>
