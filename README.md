@@ -44,6 +44,7 @@ For a comprehensive list of all available options and their default values, see 
 | `initial-message` | No | A message sent to the agent to start the conversation. This message is not displayed to the user. | `hi` |
 | `input-placeholder-text` | No | The placeholder text for the user input field. | `Type your message...` |
 | `auto-open-chat` | No | If set to `true`, the chat window will open automatically on page load. | `true` |
+| `disable-bubble` | No | If set to `true`, the chat bubble will not show up when the chat is closed. Rely on the `open()` and `close()` functions to show/hide the chat. | `false` |
 | `language-code` | No | The language code for the conversation. Defaults to `en-US`. | `es-ES` |
 | `disable-image-uploads` | No | Disable the image upload button from the input box. | `true` |
 | `enable-debugger` | No | If set to `true`, enables the debugger, which prints detailed logs to the console and exposes them on the `window.cesMessengerLogs` object. | `true` |
@@ -228,6 +229,14 @@ cesm.clearStorage({ clearAuthentication: true });
 ### `signOut()`
 
 Signs the user out by clearing authentication tokens from local storage.
+
+### `open()`
+
+Programmatically open the chat window.
+
+### `close()`
+
+Programmatically close the chat window.
 
 ## Events
 

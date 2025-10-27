@@ -9,9 +9,9 @@
     :class="bidiClasses"
   >
     <div
-      v-if="chatUiStatus === 'collapsed'"
+      v-if="chatUiStatus === 'collapsed' && !agentConfig.disableBubble"
       class="assistant-collapsed"
-      @click="openChatPanel"
+      @click="open"
     >
       <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconChat)}`">
     </div>
@@ -45,7 +45,7 @@
           </div>
           <div
             class="close-button"
-            @click="closeChatPanel"
+            @click="close"
           >
             <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconClose)}`">
           </div>
@@ -1223,13 +1223,13 @@ onUnmounted(() => {
   }
 });
 
-function openChatPanel() {
+function open() {
   chatUiStatus.value = 'expanded';
   startConversation();
   window.dispatchEvent(new CustomEvent('ces-chat-open-changed', { detail: { isOpen: true } }));
 };
 
-function closeChatPanel() {
+function close() {
   let shouldClose = true;
   if (cesmHooks['before-chat-panel-close']) {
     shouldClose = cesmHooks['before-chat-panel-close']();
@@ -1721,6 +1721,7 @@ function createDomHintTracker(config) {
 
 defineExpose({
   clearStorage,
+  close,
   disconnectWebStream,
   endSession,
   holdToolResponses,
@@ -1728,6 +1729,7 @@ defineExpose({
   getRichTextHandler,
   insertMessage,
   insertRichMessage,
+  open,
   pauseConversation,
   createDomHintTracker,
   registerClientSideFunction,

@@ -48,6 +48,9 @@ const WIDGET_ATTRIBUTES = {
   autoOpenChat: {
     type: [Boolean, String]
   },
+  disableBubble: {
+    type: [Boolean, String]
+  },
   // deprecated
   bidiSize: {
     type: String
@@ -147,6 +150,7 @@ const WIDGET_DEFAULTS = {
   // ALWAYS_ON, DEFAULT_ON, DEFAULT_OFF, DISABLED
   audioOutputMode: 'DEFAULT_ON',
   autoOpenChat: false,
+  disableBubble: false,
   chatTitle: '',
   disableImageUploads: false,
   enableDebugger: false,
