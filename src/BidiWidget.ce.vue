@@ -252,6 +252,7 @@ import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor
 import { FunctionToolHandler } from '@/function-tools';
 import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { DomHintTracker } from '@/dom-hints.js';
+import DOMPurify from 'dompurify';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
 import { agentConfigInstance, WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
@@ -634,6 +635,13 @@ function liveUserUtterance() {
 function insertMessage(actor, value, fullPayload) {
   const messageId = getNextMessageId();
 
+  // Make sure html messages do not contain malicious code
+  if (value.payload?.html && !value.payload?.safe) {
+    value.payload.html = DOMPurify.sanitize(value.payload.html, {
+      ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src', 'controls', 'width', 'height', 'autoplay', 'muted']
+    });
+  }
+
   // Remove any previous message with the same HTML payload
   if (value.replace) {
     const existingAuthMessageIndex = messages.value.findIndex(m => (
@@ -692,7 +700,7 @@ function insertRichMessage(templateId, context, contentType=undefined, renderOpt
   context.cesMessageId = getNextMessageId();
   const rendered = renderTemplate(templateId, context);
   if (!rendered) return false;
-  const payload = { html: rendered, templateId: templateId, context: context};
+  const payload = { html: rendered, templateId: templateId, context: context, safe: true};
   if (contentType) payload.contentType = contentType;
   if (renderOptions) payload.renderOptions = renderOptions;
   insertMessage('BOT', { payload: payload });
@@ -1553,7 +1561,14 @@ function getWebStreamEventListeners() {
               }
             }
             if (pushMessage) {
-              const msgToInsert = { text: message.text };
+
+              const msgToInsert = {};
+              if (/<[a-z][\s\S]*>/i.test(message.text)) {
+                msgToInsert.payload = { html: message.text };
+              } else {
+                msgToInsert.text = message.text;
+              }
+
               if (message.turnIndex) msgToInsert.turnIndex = message.turnIndex;
 
               if (message.partial != undefined) msgToInsert.partial = message.partial;
