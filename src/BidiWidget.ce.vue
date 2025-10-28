@@ -98,7 +98,7 @@
                 v-if="allowUploads && !isCallMode"
                 class="upload-container"
                 draggable="false"
-                @click="uploadFile()"
+                @click="uploadHelper.uploadFile()"
               >
                 <div class="plus-container">
                   add an image
@@ -109,13 +109,13 @@
                 >
                   <div
                     class="upload-option"
-                    @click.stop="triggerFileUpload"
+                    @click.stop="uploadHelper.triggerFileUpload"
                   >
                     <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPicture)}`">Upload
                     image
                   </div>
                   <div
-                    v-if="canTakePicture"
+                    v-if="uploadHelper.canTakePicture"
                     class="upload-option"
                     @click.stop="triggerCameraCapture"
                   >
@@ -141,7 +141,7 @@
                     <img :src="`${image}`">
                     <button
                       class="remove-image-button"
-                      @click="removeImage(index)"
+                      @click="uploadHelper.removeImage(index)"
                     >
                       <img
                         :src="`data:image/svg+xml;utf8,${iconClose}`"
@@ -252,9 +252,11 @@ import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor
 import { FunctionToolHandler } from '@/function-tools';
 import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { DomHintTracker } from '@/dom-hints.js';
+import { UploadHelper } from '@/upload-helper.js';
 import DOMPurify from 'dompurify';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
+import { isVoiceActive } from '@/util.js';
 import { agentConfigInstance, WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
 import { marked } from 'marked';
 
@@ -296,7 +298,6 @@ let chatUiStatus = ref(agentConfig.autoOpenChat ? 'expanded' : 'collapsed');
 let voiceDetected = ref(false);
 let lastVoiceDetected = new Date(0);
 const VAD_TIMEOUT = 200;
-const VAD_THRESHOLD = 0.01;
 
 
 let websocketUri = agentConfig.websocketUri;
@@ -412,13 +413,16 @@ if (agentConfig.audioInputMode !== 'NONE') {
 const isConnected = ref(false);
 const isResumedSession = ref(false);
 const receivedTranscript = ref(null);
-const imgUploadQueue = ref([]);
 let toolMessageHold = false;
 const toolMessageQueue = ref([]);
 const talking = ref(!pushToTalk);
 const lastUserUtterance = ref('');
 const lastUtteranceInserted = ref(false);
 const isConfigValid = ref(validateAgentConfig());
+const imgUploadQueue = ref([]);
+const showUploadOverlay = ref(false);
+const uploadHelper = new UploadHelper(agentConfig, imgUploadQueue, showUploadOverlay);
+
 // If we do not receive any new transcripts past the defined delay, we flush the transcript.
 let lastTranscriptTimeout = null;
 const lastTranscriptDelay = 1500;
@@ -428,8 +432,6 @@ let handoffInflight = ref(false);
 const isAudioPlaying = ref(false);
 const isSpacebarPressedForTalk = ref(false);
 const needsUserInteractionToResume = ref(false);
-const showUploadOverlay = ref(false);
-const canTakePicture = ref(false);
 
 let audioEnabled = ref(agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'DEFAULT_OFF');
 const displayMuteButton = agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'ALWAYS_ON';
@@ -931,34 +933,6 @@ async function endSession() {
   }
 };
 
-/**
- * Analyzes a base64 audio chunk to detect if it contains voice.
- * @param {string} base64Data The base64 encoded audio data.
- * @returns {boolean} `true` if voice is detected, otherwise `false`.
- */
-function isVoiceActive(base64Data) {
-  // Decode base64 to a byte array
-  const binaryString = atob(base64Data);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  // Create a DataView to read 16-bit PCM samples
-  const dataView = new DataView(bytes.buffer);
-  const sampleCount = dataView.byteLength / 2;
-  let sumOfSquares = 0;
-  for (let i = 0; i < sampleCount; i++) {
-    // Read a 16-bit sample and normalize it to a range of -1.0 to 1.0
-    const sample = dataView.getInt16(i * 2, true) / 32768;
-    sumOfSquares += sample * sample;
-  }
-
-  const rms = Math.sqrt(sumOfSquares / sampleCount);
-  return rms > VAD_THRESHOLD;
-}
-
 // --------------------- Keyboard input ---------------------
 async function submitUserInput() {
   const manualUtteranceText = currentUserInput.value;
@@ -1041,102 +1015,6 @@ function handleSpacebarUp(event) {
   }
 };
 
-async function resizeImage(file, maxWidth = 800, maxHeight = 800) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round(height * (maxWidth / width));
-            width = maxWidth;
-          } else {
-            width = Math.round(width * (maxHeight / height));
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg'));
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// Upload an image file when the user clicks on the plus button
-// eslint-disable-next-line no-unused-vars
-function uploadFile(event) {
-  showUploadOverlay.value = !showUploadOverlay.value;
-}
-
-function triggerFileUpload() {
-  showUploadOverlay.value = false;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.multiple = true; // Allow multiple file selection
-  input.onchange = async (event) => {
-    const files = event.target.files;
-    if (files.length > 0) {
-      for (const file of files) {
-        if (imgUploadQueue.value.length >= agentConfig.imageUploadMaxNumber) {
-          Logger.warn('maximum number of image uploads reached. Ignoring image.');
-          continue;
-        }
-        try {
-          const resizedImageDataUrl = await resizeImage(file, agentConfig.imageUploadMaxWidth, agentConfig.imageUploadMaxHeight);
-          imgUploadQueue.value.push(resizedImageDataUrl);
-        } catch (error) {
-          Logger.error('Error resizing image:', error);
-          // Optionally, handle the error, e.g., by notifying the user
-        }
-      }
-    }
-  };
-  input.click();
-}
-
-function triggerCameraCapture() {
-  if (imgUploadQueue.value.length >= agentConfig.imageUploadMaxNumber) {
-    Logger.warn('maximum number of image uploads reached. Ignoring image.');
-    return;
-  }
-  showUploadOverlay.value = false;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'user'; // 'environment' would be for the back camera
-  input.onchange = async (event) => {
-    const files = event.target.files;
-    if (files.length > 0) {
-      // Typically the camera will only provide one file
-      const file = files[0];
-      try {
-        const resizedImageDataUrl = await resizeImage(file);
-        imgUploadQueue.value.push(resizedImageDataUrl);
-      } catch (error) {
-        Logger.error('Error processing image from camera:', error);
-      }
-    }
-  };
-  input.click();
-}
-
-function removeImage(index) {
-  imgUploadQueue.value.splice(index, 1);
-}
-
 // --------------------- Audio streamer ---------------------
 if (agentConfig.audioInputMode !== 'NONE') {
   audioStreamer.onComplete = () => {
@@ -1200,16 +1078,6 @@ onMounted(async () => {
       }
     } else if (agentConfig.oauthClientId) {
       startConversation();
-    }
-  }
-
-  if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const isMobile = /Mobi/i.test(navigator.userAgent);
-      canTakePicture.value = isMobile && devices.some(device => device.kind === 'videoinput');
-    } catch (error) {
-      Logger.warn('Could not detect camera:', error);
     }
   }
 
@@ -1751,6 +1619,7 @@ defineExpose({
   registerRichMessageHandler,
   registerHook,
   registerTemplate,
+  uploadHelper,
   sessionInput,
   setAccessToken,
   setQueryParameters,

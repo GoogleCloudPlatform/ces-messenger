@@ -55,9 +55,40 @@ async function audioContext({ sampleRate }) {
   return context;
 }
 
+/**
+ * Analyzes a base64 audio chunk to detect if it contains voice.
+ * @param {string} base64Data The base64 encoded audio data.
+ * @returns {boolean} `true` if voice is detected, otherwise `false`.
+ */
+function isVoiceActive(base64Data) {
+  // Decode base64 to a byte array
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Create a DataView to read 16-bit PCM samples
+  const dataView = new DataView(bytes.buffer);
+  const sampleCount = dataView.byteLength / 2;
+  let sumOfSquares = 0;
+  for (let i = 0; i < sampleCount; i++) {
+    // Read a 16-bit sample and normalize it to a range of -1.0 to 1.0
+    const sample = dataView.getInt16(i * 2, true) / 32768;
+    sumOfSquares += sample * sample;
+  }
+
+  const rms = Math.sqrt(sumOfSquares / sampleCount);
+  return rms > VAD_THRESHOLD;
+}
+const VAD_THRESHOLD = 0.01;
+
+
 export {
   getAgentDetails,
   generateSessionId,
   base64ToArrayBuffer,
   audioContext,
+  isVoiceActive,
 };
