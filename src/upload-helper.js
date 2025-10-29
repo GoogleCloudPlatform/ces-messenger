@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ref } from 'vue';
 import { Logger } from '@/logger.js';
 
 /**

@@ -164,7 +164,7 @@
                 class="talk-button"
                 :class="{ talking: !!talking, chat: agentConfig.modality === 'chat' }"
                 draggable="false"
-                @click="setTalkingMode(!talking)"
+                @click="audioHelper.setTalkingMode(!talking)"
               >
                 <div
                   v-if="!!talking"
@@ -246,19 +246,17 @@
 import { computed, ref, onMounted, onUnmounted, watch, nextTick, useTemplateRef } from 'vue';
 import { WebchannelBidiStream, WebsocketBidiStream, HttpRequestResponseStream } from '@/bidi/bidi-webstream.js';
 import { authenticate, setAccessToken, signOut, isTokenValid, refreshToken, googleOauthSignIn, accessToken } from '@/authentication.js';
-import { AudioStreamerFactory } from '@/audio/audio-streamer.js';
-import { AudioRecorder } from '@/audio/audio-recorder.js';
-import { AdaptorFactory, BidiStreamingDetectIntentAdaptor, BidiRunSessionAdaptor, RunSessionAdaptor } from '@/bidi/bidi-adaptors.js';
+import { AdaptorFactory, BidiRunSessionAdaptor, RunSessionAdaptor } from '@/bidi/bidi-adaptors.js';
+import { AudioHelper } from '@/audio/audio-helper.js';
 import { FunctionToolHandler } from '@/function-tools';
 import { renderTemplate, registerTemplate } from '@/templates/index.js';
 import { DomHintTracker } from '@/dom-hints.js';
 import { UploadHelper } from '@/upload-helper.js';
-import DOMPurify from 'dompurify';
 import { googleSdkLoaded } from 'vue3-google-login';
 import { Logger } from '@/logger.js';
-import { isVoiceActive } from '@/util.js';
 import { agentConfigInstance, WIDGET_ATTRIBUTES, WIDGET_DEFAULTS, RECONNECT_DELAY, RECONNECT_DELAY_MULTIPLIER, RECONNECT_MAX_ATTEMPS } from '@/agent-config.js';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 // Import all icons so we can inline them
 import iconChat from './assets/img/icon-chat.svg?raw';
@@ -294,12 +292,6 @@ const messages = agentConfigInstance.messages;
 let currentUserInput = ref('');
 let chatUiStatus = ref(agentConfig.autoOpenChat ? 'expanded' : 'collapsed');
 
-// Speech detection
-let voiceDetected = ref(false);
-let lastVoiceDetected = new Date(0);
-const VAD_TIMEOUT = 200;
-
-
 let websocketUri = agentConfig.websocketUri;
 
 // Set logging as specified in config
@@ -324,8 +316,6 @@ function setQueryParameters(params) {
   }
 }
 
-const pushToTalk = !['DEFAULT_ON', 'NONE', undefined].includes(agentConfig.audioInputMode);
-
 // Classes for bidi widget
 const bidiClasses = ref([
   agentConfig.themeId || WIDGET_DEFAULTS.themeId,
@@ -345,34 +335,11 @@ if (agentConfig.oauthClientId) {
 // Constants
 const bidiAdaptor = AdaptorFactory.createAdaptor(agentConfig);
 
-// Setting up Audio objects, if needed
-let audioRecorder = null;
-let audioContext = null;
-let audioStreamer = null;
-let audioContextState = ref(null);
-
-if (agentConfig.audioInputMode !== 'NONE') {
-  let sampleRate = 16e3;
-  const configMessage = bidiAdaptor.getConfigMessage(agentConfig, null);
-  if (bidiAdaptor.appId == 'BIDI_ADK') { // ADK
-    // ADK uses 24kHz sample rate
-    sampleRate = 24000;
-    // They also bring their own websosket server
-    websocketUri = agentConfig.cesUrl;
-  } else if (configMessage.configMessage?.outputAudioConfig?.sample_rate_hertz) { // PBL
-    sampleRate = configMessage.configMessage.outputAudioConfig.sample_rate_hertz;
-  } else if (configMessage.config?.outputAudioConfig?.sampleRateHertz) { // PS
-    sampleRate = configMessage.config.outputAudioConfig.sampleRateHertz;
-  }
-
-  audioRecorder = new AudioRecorder();
-  audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: sampleRate });
-
-  if (agentConfig.audioOutputMode === 'NONE') {
-    audioStreamer = AudioStreamerFactory.createStreamer(audioContext, 'SILENT');
-  } else {
-    audioStreamer = AudioStreamerFactory.createStreamer(audioContext);
-    audioStreamer.onComplete = () => {
+const audioHelper = new AudioHelper(
+  agentConfig,
+  bidiAdaptor,
+  () => { // onComplete callback
+      console.log('audio helper onComplete callback');
       isAudioPlaying.value = false;
       // A session disconnect was requested
       if (disconnectReason.value) {
@@ -380,34 +347,19 @@ if (agentConfig.audioInputMode !== 'NONE') {
         pauseConversation();
         disconnectWebStream(disconnectReason.value);
       }
-    };
-  }
-
-  // Playbooks Live specific settings
-  if (bidiAdaptor instanceof BidiStreamingDetectIntentAdaptor) {
-    // Add fade-in at the begining of the audio to avoid the click sound
-    audioStreamer.fadeIn = true;
-    // Adjust barge-in sensitivity
-    if (!agentConfig.bargeInSensitivity) agentConfig.bargeInSensitivity = 'MEDIUM';
-
-    if (agentConfig.bargeInSensitivity == 'LOW') {
-      bidiAdaptor.bargeInTranscriptsTrigger = 5;
-      bidiAdaptor.bargeInMaxGapMs = 300;
-    } else if (agentConfig.bargeInSensitivity == 'MEDIUM') {
-      bidiAdaptor.bargeInTranscriptsTrigger = 3;
-      bidiAdaptor.bargeInMaxGapMs = 500;
-    } else if (agentConfig.bargeInSensitivity == 'HIGH') {
-      bidiAdaptor.bargeInTranscriptsTrigger = 1;
-      bidiAdaptor.bargeInMaxGapMs = 1000;
-    } else if (agentConfig.bargeInSensitivity == 'DISABLED') {
-      bidiAdaptor.bargeInTranscriptsTrigger = -1;
     }
-  }
-  audioContextState.value = audioContext.state;
-  audioContext.onstatechange = () => {
-    audioContextState.value = audioContext.state;
-  };
-}
+);
+
+// Audio Helper reactive properties
+const audioContextState = audioHelper.audioContextState;
+const isAudioPlaying = audioHelper.isAudioPlaying;
+const audioEnabled = audioHelper.audioEnabled;
+const talking = audioHelper.talking;
+const voiceDetected = audioHelper.voiceDetected;
+const displayMuteButton = audioHelper.displayMuteButton;
+
+// exported functions
+const pauseConversation = audioHelper.pauseConversation.bind(audioHelper);
 
 // Reactive Properties
 const isConnected = ref(false);
@@ -415,7 +367,6 @@ const isResumedSession = ref(false);
 const receivedTranscript = ref(null);
 let toolMessageHold = false;
 const toolMessageQueue = ref([]);
-const talking = ref(!pushToTalk);
 const lastUserUtterance = ref('');
 const lastUtteranceInserted = ref(false);
 const isConfigValid = ref(validateAgentConfig());
@@ -429,12 +380,9 @@ const lastTranscriptDelay = 1500;
 const disconnectReason = ref(null);
 const functionCallInflight = ref(false);
 let handoffInflight = ref(false);
-const isAudioPlaying = ref(false);
 const isSpacebarPressedForTalk = ref(false);
 const needsUserInteractionToResume = ref(false);
 
-let audioEnabled = ref(agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'DEFAULT_OFF');
-const displayMuteButton = agentConfig.audioInputMode !== 'NONE' && agentConfig.audioOutputMode !== 'DISABLED' && agentConfig.audioOutputMode !== 'ALWAYS_ON';
 const isCallMode = ref(agentConfig.modality === 'call');
 
 // Template Refs
@@ -453,7 +401,7 @@ let router = null; // TODO: see is this is needed
 
 // Computed Properties
 const connectedMode = computed(() => {
-  const audioReady = agentConfig.audioInputMode === 'NONE' || (audioContext && audioContextState.value === 'running') || isResumedSession.value;
+  const audioReady = agentConfig.audioInputMode === 'NONE' || (audioHelper.audioContext && audioHelper.audioContextState.value === 'running') || isResumedSession.value;
   return (isConnected.value && (accessToken.value || agentConfig.apiUri) && audioReady) || ['SERVER_DROP', 'DISCONNECT_WAITING'].includes(disconnectReason.value);
 });
 
@@ -568,14 +516,6 @@ const agentEnv = computed(() => {
 // Initialize function handler
 const functionToolHandler = new FunctionToolHandler(bidiAdaptor.location, bidiAdaptor.projectId, bidiAdaptor.agentId, bidiAdaptor.sessionId, accessToken.value, router);
 const registerClientSideFunction = functionToolHandler.registerClientSideFunction.bind(functionToolHandler);
-
-// Helper Functions
-function setTalkingMode(talkingMode) {
-  if (talkingMode && audioContext?.state !== 'running') {
-    audioContext.resume();
-  }
-  talking.value = talkingMode;
-}
 
 function validateAgentConfig() {
   // Rule 1: 'call' style requires audio input
@@ -849,11 +789,6 @@ const processToolCallMessage = async (toolCallMessage) => {
 
 // --------------------- Conversation Management ---------------------
 
-// Empty audio to send in push-to-talk mode when the mic is off
-const zeroFilledBuffer = new ArrayBuffer(4096);
-const uint8Array = new Uint8Array(zeroFilledBuffer);
-const emptyAudio = btoa(String.fromCharCode(...uint8Array));
-
 const startConversation = async () => {
 
   // First, validate agent configuration
@@ -861,7 +796,7 @@ const startConversation = async () => {
     return;
   }
 
-  if (!isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioContext.state !== 'running') {
+  if (!isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
     return;
   }
 
@@ -880,49 +815,20 @@ const startConversation = async () => {
 
   try {
     connectWebStream();
+    audioHelper.startRecording((base64Data) => {
+      if (bidiStream != null && bidiStream.isConnected()) {
+        // Prepare the message payload
+        const message = bidiAdaptor.marshallMessage(
+          { type: 'AUDIO', payload: { audio: base64Data }, vars: queryVars });
 
-    if (agentConfig.audioInputMode !== 'NONE') {
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
+        logger.info({ message: '<audio>', event: 'audio sent', payload: message }, 'user-message');
+        // Send the message over the WebSocket
+        sendQueryParams();
+        sessionInput(message);
       }
-      await audioRecorder.start();
-
-      audioRecorder.on('data', (base64Data) => {
-        if (bidiStream != null && bidiStream.isConnected()) {
-          // If not talking (in push-to-talk mode, send empty audio instead of actual audio)
-          if (!talking.value) {
-            base64Data = emptyAudio;
-            voiceDetected.value = false;
-          } else {
-            const now = Date.now();
-            if (isVoiceActive(base64Data)) {
-              lastVoiceDetected = now;
-              voiceDetected.value = true;
-            } else if (lastVoiceDetected && now - lastVoiceDetected > VAD_TIMEOUT) {
-              voiceDetected.value = false;
-            }
-          }
-
-          // Prepare the message payload
-          const message = bidiAdaptor.marshallMessage(
-            { type: 'AUDIO', payload: { audio: base64Data }, vars: queryVars });
-
-          logger.info({ message: '<audio>', event: 'audio sent', payload: message }, 'user-message');
-          // Send the message over the WebSocket
-          sendQueryParams();
-          sessionInput(message);
-        }
-      });
-    }
+    })
   } catch (error) {
     Logger.error('Error starting recording:', error);
-  }
-};
-
-function pauseConversation() {
-  if (agentConfig.audioInputMode !== 'NONE') {
-    audioStreamer.stop();
-    audioRecorder.stop();
   }
 };
 
@@ -969,7 +875,7 @@ async function submitUserInput() {
     window.dispatchEvent(new CustomEvent('ces-user-input-entered', { detail: { input: manualUtteranceText } }));
     // If a response is playing, stop it
     if (isAudioPlaying.value) {
-      audioStreamer.stop();
+      audioHelper.stopAudio();
     }
   }
 
@@ -991,48 +897,37 @@ function resetTextareaHeight() {
 // Keyboard event handlers for spacebar push-to-talk
 function handleSpacebarDown(event) {
   // Check if pushToTalk is enabled, the key is Space, and the focus is not in the web component
-  if (pushToTalk && event.code === 'Space' && event.target === document.body) {
+  if (audioHelper.pushToTalk && event.code === 'Space' && event.target === document.body) {
     // Prevent default action (scrolling)
     event.preventDefault();
     // Only start talking if not already started by spacebar
     if (!isSpacebarPressedForTalk.value) {
       isSpacebarPressedForTalk.value = true;
-      setTalkingMode(true);
+      audioHelper.setTalkingMode(true);
     }
   }
 };
 
 function handleSpacebarUp(event) {
   // Check if pushToTalk is enabled, the key is Space, and the focus is not in the web component
-  if (pushToTalk && event.code === 'Space' && event.target === document.body) {
+  if (audioHelper.pushToTalk && event.code === 'Space' && event.target === document.body) {
     // Prevent default action (scrolling)
     event.preventDefault();
     // Only stop talking if it was started by spacebar
     if (isSpacebarPressedForTalk.value) {
       isSpacebarPressedForTalk.value = false;
-      setTalkingMode(false);
+      audioHelper.setTalkingMode(false);
     }
   }
 };
 
-// --------------------- Audio streamer ---------------------
-if (agentConfig.audioInputMode !== 'NONE') {
-  audioStreamer.onComplete = () => {
-    isAudioPlaying.value = false;
-    if (disconnectReason.value) {
-      pauseConversation();
-      if (bidiStream && bidiStream.isConnected()) disconnectWebStream(disconnectReason.value);
-    }
-  };
-}
-
 function stopCapturingAudio() {
-  setTalkingMode(false);
+  audioHelper.setTalkingMode(false);
 };
 
 watch(talking, (value) => {
   if (value) {
-    audioStreamer.stop();
+    audioHelper.stopAudio();
   }
 });
 
@@ -1040,7 +935,7 @@ function toggleAudioOutput(newValue) {
   if (typeof newValue != 'boolean') audioEnabled.value = !audioEnabled.value;
   else audioEnabled.value = newValue;
   if (!audioEnabled.value) {
-    audioStreamer.stop();
+    audioHelper.stopAudio();
   }
 }
 
@@ -1050,7 +945,7 @@ onMounted(async () => {
 
   loadStateFromSession();
   window.addEventListener('beforeunload', saveStateToSession);
-  if (pushToTalk) {
+  if (audioHelper.pushToTalk) {
     window.addEventListener('keydown', handleSpacebarDown);
     window.addEventListener('keyup', handleSpacebarUp);
   }
@@ -1071,7 +966,7 @@ onMounted(async () => {
       }
     });
     if (await authenticate()) {
-      if (isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioContext?.state !== 'running') {
+      if (isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
         needsUserInteractionToResume.value = true;
       } else {
         startConversation();
@@ -1089,7 +984,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('beforeunload', saveStateToSession);
 
-  if (pushToTalk) {
+  if (audioHelper.pushToTalk) {
     window.removeEventListener('mouseup', stopCapturingAudio);
     window.removeEventListener('keydown', handleSpacebarDown);
     window.removeEventListener('keyup', handleSpacebarUp);
@@ -1113,7 +1008,7 @@ function close() {
 
   if (shouldClose) {
     chatUiStatus.value = 'collapsed';
-    if (isAudioPlaying.value) audioStreamer.stop();
+    if (isAudioPlaying.value) audioHelper.stopAudio();
     window.dispatchEvent(new CustomEvent('ces-chat-open-changed', { detail: { isOpen: false } }));
   }
 };
@@ -1132,8 +1027,8 @@ function reconnect() {
     startConversation();
   };
 
-  if (agentConfig.audioInputMode !== 'NONE' && audioContext?.state !== 'running') {
-    audioContext.resume().then(start);
+  if (agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
+    audioHelper.audioContext.resume().then(start);
   } else {
     start();
   }
@@ -1406,12 +1301,7 @@ function getWebStreamEventListeners() {
 
           if (message.type === 'AUDIO') {
             if (audioEnabled.value && chatUiStatus.value !== 'collapsed') {
-              audioStreamer.addChunk(message.audio);
-              if (message.sampleRateHertz && audioContext.sampleRate !== message.sampleRateHertz) {
-                Logger.warn(`AudioContext sample rate (${audioContext.sampleRate}) does not match audio message sample rate: ${message.sampleRateHertz}`);
-              }
-              audioStreamer.play();
-              isAudioPlaying.value = true;
+              audioHelper.playAudioCLip(message.audio);
             }
             logger.info({ message: '<audio>', event: 'audio received', payload: inMessage }, 'bot-message');
           } else if (message.type === 'TEXT') {
@@ -1459,7 +1349,7 @@ function getWebStreamEventListeners() {
             liveUserUtterance();
 
             if (message.interruptionSignal && isAudioPlaying.value) {
-              audioStreamer.stop();
+              audioHelper.stopAudio();
             }
 
             // BidiSDI indicates when a transcript is final
@@ -1520,14 +1410,14 @@ function getWebStreamEventListeners() {
             }
             // Only disconnect if there is no audio playing, otherwise wait for audio to complete.
             if (!isAudioPlaying.value) {
-              pauseConversation();
+              audioHelper.pauseConversation();
               disconnectWebStream(message.disconnectReason);
             }
           } else if (message.type === 'CONTROL_SIGNAL' && message.interruptionSignal) {
             Logger.debug('barge-in received');
             // Barge-in handling. Stop audio playback.
             if (isAudioPlaying.value) {
-              audioStreamer.stop();
+              audioHelper.stopAudio();
             }
           }
         }
