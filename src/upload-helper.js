@@ -40,7 +40,6 @@ export class UploadHelper {
 
   /** Toggles the visibility of the upload overlay. */
   uploadFile() {
-    console.log('uploadFile clicked');
     this.showUploadOverlay.value = !this.showUploadOverlay.value;
   }
 
@@ -62,7 +61,6 @@ export class UploadHelper {
           try {
             const resizedImageDataUrl = await this.resizeImage(file, this.agentConfig.imageUploadMaxWidth, this.agentConfig.imageUploadMaxHeight);
             this.imgUploadQueue.value.push(resizedImageDataUrl);
-            console.log
           } catch (error) {
             this.logger.error('Error resizing image:', error);
           }

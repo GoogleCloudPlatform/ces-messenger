@@ -339,7 +339,6 @@ const audioHelper = new AudioHelper(
   agentConfig,
   bidiAdaptor,
   () => { // onComplete callback
-      console.log('audio helper onComplete callback');
       isAudioPlaying.value = false;
       // A session disconnect was requested
       if (disconnectReason.value) {

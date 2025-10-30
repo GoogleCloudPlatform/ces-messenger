@@ -391,7 +391,7 @@ window.addEventListener('ces-messenger-loaded', () => {
   cesm.registerHook('response-received', (message) => {
     if (message.recognitionResult) {
       return false;
-    }1
+    }
     return true;
   });
 });
