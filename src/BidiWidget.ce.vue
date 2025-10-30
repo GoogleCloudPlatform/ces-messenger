@@ -1403,6 +1403,16 @@ function getWebStreamEventListeners() {
                 sessionInput(marshalledMessage);
               }
             }
+          } else if (message.type === 'PAYLOAD' && message.payload) {
+            if (typeof cesmHooks['payload-received'] === 'function') {
+              // The hook can cancel the default action if it returns false
+              if (cesmHooks['payload-received'](message.payload)) {
+                // Default handling of rich message template payloads
+                if (message.payload.template_id && message.payload.context) {
+                  insertRichMessage(message.payload.template_id, message.payload.context, message.payload.content_type, message.payload.render_options);
+                }
+              }
+            }
           } else if (message.type === 'CONTROL_SIGNAL' && message.agentDisconnect) {
             if (message.disconnectReason) {
               disconnectReason.value = message.disconnectReason;

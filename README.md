@@ -341,6 +341,7 @@ You can register callbacks for more granular on certain operations in the widget
 
 *   `before-chat-panel-close`: Callec before the chat panel is closed. If the callback returns `false`, the closing action is canceled. This is useful for implementing custom confirmation dialogs. See an example in [doc/examples/panel_close_options.html](doc/examples/panel_close_options.html).
 *   `response-received`: Called whenever a non-audio message response is received from the agent. The argument is the message object received. This allows to make modifications to the received message, or skip the message altogether. If the callback hook returns `true`, the message processing will continue (with any modifications applied by the callback). If the callback returns `false`, the message will be skipped and no events will be fired about this message.
+*   `payload-received`: Called whenever a payload is received from the agent. The argument is the payload object received. If the callback function returns `true`, the default payload action will occur after the callback executes. If the callback function returns `false`, the default payload action will not occur. Currently there is only one default payload action used for displaying rich messages.
 
 ### Examples
 
@@ -392,6 +393,20 @@ window.addEventListener('ces-messenger-loaded', () => {
     if (message.recognitionResult) {
       return false;
     }
+    return true;
+  });
+});
+```
+
+Modify rich moessage context before it is rendered:
+
+```javascript
+window.addEventListener('ces-messenger-loaded', () => {
+  const cesm = document.querySelector('ces-messenger');
+
+  cesm.registerHook('payload-received', (payload) => {
+    if (payload.context?.text) payload.context.text = payload.context.text.toUpperCase();
+    // Allow the default custom payload handling to occur
     return true;
   });
 });

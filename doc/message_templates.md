@@ -9,19 +9,32 @@ This system is built upon two core concepts:
 
 ## How it Works
 
-The process for displaying a rich message is straightforward:
+There are two ways of sending rich messages from the agent to `ces-messenger`:
+
+### Via client functions
+
+Steps involved in this approach:
 
 1.  The agent determines that a rich message needs to be displayed.
-2.  It invokes a special Client Function, providing a `template_id` and a `context` object. The `context` contains the data to be rendered in the template. Optionally, two other arguments can be used in the function `content_type` and `render_options`. See below fore more details.
+2.  It invokes a special Client Function, providing at a minimum a `template_id` and a `context` object. The `context` contains the data to be rendered in the template. Optionally, two other arguments can be used in the function `content_type` and `render_options`. See below fore more details.
 3.  The `ces-messenger` widget automatically detects this specific function call. It looks for a registered template matching the `template_id`.
 4.  If a matching template is found, the widget uses Handlebars to combine the template with the provided `context` data.
 5.  The resulting HTML is then rendered as a new message in the chat history.
 
 This approach allows for dynamic and interactive user experiences, where the agent can display complex UI elements within the conversation.
 
-## Client Function arguments
+### Via custom payload:
 
-The client function call can contain the following arguments:
+In this approach there is no need to define a Client Function. The steps involved are:
+
+1.  The agent builds and returns a custom payload with, at a minimum, a `template_id` and a `context` object. The other elements are optional.
+2.  The `ces-messenger` widget automatically detects this payload and renders it as a new message in the chat history. If a `payload-received` callback hook has been configured, the callback function will be called first, allowing for context changes and default action override.
+
+In this approach, there is no response from the `ces-messenger` to the agent after the message has been displayed, so there will be no confirmation message sent by the agent. The payload value is not visible to the LLM, so it will not be used in the context of the conversation.
+
+## Message template arguments
+
+The client function call or the payload can contain the following arguments:
 
 * `template_id` (required): the ID of the template to render.
 * `context` (required): the data to be rendered in the template.
