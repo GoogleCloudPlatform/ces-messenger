@@ -625,7 +625,8 @@ function insertMessage(actor, value, fullPayload) {
       // Take the last message again, and parse it, if it looks like markdown
       lastMessage = getLastMessage({ actor: 'BOT' });
       if (lastMessage && lastMessage.text &&
-        (lastMessage.text.includes('* ') || lastMessage.text.includes('**'))) {
+        (lastMessage.text.includes('* ') || lastMessage.text.includes('**') ||
+        lastMessage.text.includes('](')  || lastMessage.text.includes('\n*'))) {
         lastMessage.html = marked.parse(lastMessage.text);
       }
     } else {
