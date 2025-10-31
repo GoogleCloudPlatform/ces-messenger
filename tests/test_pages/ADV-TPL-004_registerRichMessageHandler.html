@@ -1,0 +1,102 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>ADV-TPL-004: registerRichMessageHandler()</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>ADV-TPL-004: <code>registerRichMessageHandler()</code></h2>
+    <p><b>Test Case:</b> Verify that a custom handler for a rich message can be registered and executed.</p>
+    <p><b>Steps:</b>
+    <ol>
+      <li>Register a custom handler for the template ID using <code>registerRichMessageHandler</code>.</li>
+      <li>Click on an element within the rendered template.</li>
+    </ol>
+    </p>
+    <p><b>Expected Result:</b> The custom handler function should be executed. In this case, the custom content will be removed from teh page, and the element clicked will be shown in the console logs.</p>
+  </div>
+
+  <button id="clear-session">Clear Session & Reload</button>
+
+  <ces-messenger
+    deployment-id="DEPLOYMENT_ID_TEMPLATE_GALLERY_CHAT"
+    token-broker-url="TOKEN_BROKER_URL" show-error-messages="true"
+    initial-message="show me the custom demo"
+    auto-open-chat="true">
+  </ces-messenger>
+
+  <script>
+    window.addEventListener('ces-messenger-loaded', () => {
+      const cesMessenger = document.querySelector('ces-messenger');
+
+      // Dynamically load the custom_templates.js script
+      const script = document.createElement('script');
+      script.src = './resources/custom_templates.js';
+      document.head.appendChild(script);
+
+      // Register a handler for a template with the ID 'order_details'
+      cesMessenger.registerRichMessageHandler(
+        'order_details',
+        (message, clickedElement) => {
+          console.log('A user clicked on the order details template!');
+          console.log('Message object:', message);
+          console.log('Clicked element:', clickedElement);
+
+          // After interaction, remove the message from the chat history
+          return { action: 'delete' };
+        }
+      );
+    });
+  </script>
+
+  <script>
+    document.getElementById('clear-session').addEventListener('click', () => {
+      console.log('Clearing storage via ces-messenger...');
+      const cesm = document.querySelector('ces-messenger');
+      if (cesm) {
+        cesm.clearStorage({ clearAuthentication: true });
+        console.log('Storage cleared. Reloading page.');
+        window.location.reload();
+      }
+    });
+  </script>
+
+</body>
+
+</html>

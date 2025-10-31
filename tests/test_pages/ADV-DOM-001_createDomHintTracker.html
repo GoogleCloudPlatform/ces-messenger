@@ -1,0 +1,109 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>ADV-DOM-001: createDomHintTracker()</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+
+    #shopping-cart {
+      border: 1px solid black;
+      padding: 1em;
+    }
+
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>ADV-DOM-001: <code>createDomHintTracker()</code> and <code>update()</code></h2>
+    <p><b>Test Case:</b> Verify that DOM hints can be created and updated, and are sent to the agent.</p>
+    <p><b>Steps:</b>
+    <ol>
+      <li>Create a tracker:
+        <code>cesm.createDomHintTracker({ varName: 'cart_contents', selector: '#shopping-cart' })</code>.</li>
+      <li>Call <code>tracker.update()</code>.</li>
+      <li>Send a message to the agent.</li>
+    </ol>
+    </p>
+    <p><b>Expected Result:</b> The agent should receive a query parameter named <code>cart_contents</code> containing
+      the <code>innerHTML</code> of the <code>#shopping-cart</code> element.</p>
+  </div>
+
+  <div id="shopping-cart">
+    <p>Your cart contains:</p>
+    <ul>
+      <li>1x Widget</li>
+      <li>2x Gadget</li>
+    </ul>
+  </div>
+
+  <button id="clear-session">Clear Session & Reload</button>
+
+  <button id="updateHint">Update DOM Hint</button>
+
+  <ces-messenger
+    chat-title="Test chat"
+    deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+    token-broker-url="TOKEN_BROKER_URL"
+    show-error-messages="true"
+    auto-open-chat="true">
+  </ces-messenger>
+
+  <script>
+    window.addEventListener('ces-messenger-loaded', () => {
+      const cesm = document.querySelector('ces-messenger');
+      const tracker = cesm.createDomHintTracker({ varName: 'cart_contents', selector: '#shopping-cart' });
+
+      document.getElementById('updateHint').addEventListener('click', () => {
+        tracker.update();
+        alert('DOM hint updated. Send a message to the agent to see the hint in the request.');
+      });
+    });
+  </script>
+
+  <script>
+    document.getElementById('clear-session').addEventListener('click', () => {
+      console.log('Clearing storage via ces-messenger...');
+      const cesm = document.querySelector('ces-messenger');
+      if (cesm) {
+        cesm.clearStorage({ clearAuthentication: true });
+        console.log('Storage cleared. Reloading page.');
+        window.location.reload();
+      }
+    });
+  </script>
+
+</body>
+
+</html>

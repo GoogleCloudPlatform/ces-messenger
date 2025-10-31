@@ -1,0 +1,74 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>TC-INIT-001: Default Rendering</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>TC-INIT-001: Default Rendering</h2>
+    <p><b>Test Case:</b> Verify that the component renders with the minimum required attributes.</p>
+    <p><b>Steps:</b>
+      <ol>
+        <li>Include the <code>ces-messenger.js</code> script.</li>
+        <li>Add <code>&lt;ces-messenger&gt;</code> to the body with a valid <code>deployment-id</code> and <code>token-broker-url</code>.</li>
+      </ol>
+    </p>
+    <p><b>Expected Result:</b> The chat bubble should render in the bottom-right corner with default styles. The chat window should be closed.</p>
+  </div>
+
+<button id="clear-session">Clear Session & Reload</button>
+
+<ces-messenger
+    deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+    token-broker-url="TOKEN_BROKER_URL">
+</ces-messenger>
+
+</body>
+
+<script>
+  document.getElementById('clear-session').addEventListener('click', () => {
+    console.log('Clearing storage via ces-messenger...');
+    const cesm = document.querySelector('ces-messenger');
+    if (cesm) {
+      cesm.clearStorage({ clearAuthentication: true });
+      console.log('Storage cleared. Reloading page.');
+      window.location.reload();
+    }
+  });
+</script>
+
+</html>

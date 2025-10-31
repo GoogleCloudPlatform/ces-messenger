@@ -1,0 +1,94 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>API-FUNC-004: registerClientSideFunction()</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>API-FUNC-004: <code>registerClientSideFunction()</code></h2>
+    <p><b>Test Case:</b> Verify that a client-side function can be registered and executed by the agent.</p>
+    <p><b>Steps:</b>
+      <ol>
+        <li>Use <code>registerClientSideFunction</code> to register a handler for <code>display_picture</code>.</li>
+        <li>Trigger the tool from the agent.</li>
+      </ol>
+    </p>
+    <p><b>Expected Result:</b> The registered JavaScript callback should be executed, and receive the arguments sent by the agent.</p>
+  </div>
+
+<button id="clear-session">Clear Session & Reload</button>
+
+<ces-messenger
+    chat-title="Test chat"
+    initial-message="hi"
+    deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+    token-broker-url="TOKEN_BROKER_URL"
+    show-error-messages="true"
+    auto-open-chat="true">
+</ces-messenger>
+
+  <script>
+  window.addEventListener('ces-messenger-loaded', () => {
+    const cesm = document.querySelector('ces-messenger');
+
+    cesm.registerClientSideFunction(
+      {
+        toolName: 'display_picture',
+        toolDisplayName: 'Display Picture',
+      },
+      (args) => {
+        alert(`Agent wants to display a picture of: ${args.animal}`);
+        return Promise.resolve({ status: 'success', message: 'Picture displayed' });
+      }
+    );
+  });
+  </script>
+
+<script>
+  document.getElementById('clear-session').addEventListener('click', () => {
+    console.log('Clearing storage via ces-messenger...');
+    const cesm = document.querySelector('ces-messenger');
+    if (cesm) {
+      cesm.clearStorage({ clearAuthentication: true });
+      console.log('Storage cleared. Reloading page.');
+      window.location.reload();
+    }
+  });
+</script>
+
+</body>
+</html>

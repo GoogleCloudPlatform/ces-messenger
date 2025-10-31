@@ -1,0 +1,78 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>ATTR-STYLE-002: size</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>ATTR-STYLE-002: <code>size</code>: <code>large</code> vs <code>small</code></h2>
+    <p><b>Test Case:</b> Verify that the <code>size</code> attribute changes the size of the widget.</p>
+    <p><b>Steps:</b>
+      <ol>
+        <li>Set <code>size="large"</code>.</li>
+        <li>Set <code>size="small"</code>.</li>
+      </ol>
+    </p>
+    <p><b>Expected Result:</b> The chat widget should render in the specified size.</p>
+  </div>
+
+  <button id="clear-session">Clear Session & Reload</button>
+
+   <h3>small</h3>
+<ces-messenger
+    deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+    token-broker-url="TOKEN_BROKER_URL"
+    size="small"
+    show-error-messages="true"
+    auto-open-chat="true">
+</ces-messenger>
+
+</body>
+
+<script>
+  document.getElementById('clear-session').addEventListener('click', () => {
+    console.log('Clearing storage via ces-messenger...');
+    const cesm = document.querySelector('ces-messenger');
+    if (cesm) {
+      cesm.clearStorage({ clearAuthentication: true });
+      console.log('Storage cleared. Reloading page.');
+      window.location.reload();
+    }
+  });
+</script>
+
+</html>

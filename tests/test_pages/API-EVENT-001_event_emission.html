@@ -1,0 +1,97 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>API-EVENT-001: Event Emission</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>API-EVENT-001: Event Emission</h2>
+    <p><b>Test Case:</b> Verify that all documented events are fired at the correct time with the correct payload.</p>
+    <p><b>Steps:</b>
+      <ol>
+        <li>Add event listeners for all documented events.</li>
+        <li>Perform actions that trigger these events.</li>
+      </ol>
+    </p>
+    <p><b>Expected Result:</b> Each event should be fired at the correct time with the correct <code>event.detail</code> payload. Check the browser console for logs.</p>
+  </div>
+
+<button id="clear-session">Clear Session & Reload</button>
+
+<ces-messenger
+    chat-title="Test chat"
+    initial-message="hi"
+    deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+    token-broker-url="TOKEN_BROKER_URL"
+    show-error-messages="true"
+    auto-open-chat="true">
+</ces-messenger>
+
+  <script>
+    const events = [
+      'ces-messenger-loaded',
+      'ces-messenger-connected',
+      'ces-messenger-disconnected',
+      'ces-messenger-error',
+      'ces-user-input-entered',
+      'ces-response-received',
+      'ces-session-id-changed',
+      'ces-chat-panel-opened',
+      'ces-chat-panel-closed',
+    ];
+
+    events.forEach(eventName => {
+      window.addEventListener(eventName, (event) => {
+        console.log(`Event fired: ${eventName}`, event.detail);
+      });
+    });
+  </script>
+
+<script>
+  document.getElementById('clear-session').addEventListener('click', () => {
+    console.log('Clearing storage via ces-messenger...');
+    const cesm = document.querySelector('ces-messenger');
+    if (cesm) {
+      cesm.clearStorage({ clearAuthentication: true });
+      console.log('Storage cleared. Reloading page.');
+      window.location.reload();
+    }
+  });
+</script>
+
+</body>
+</html>

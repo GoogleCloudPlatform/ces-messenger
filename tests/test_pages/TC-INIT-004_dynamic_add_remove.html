@@ -1,0 +1,93 @@
+<!--
+ @license
+ Copyright 2025 Google LLC
+ SPDX-License-Identifier: Apache-2.0
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>TC-INIT-004: Component Lifecycle</title>
+  <script src="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+    }
+    .explanation {
+      max-width: 600px;
+      margin-bottom: 2em;
+      border: 1px solid #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    #clear-session {
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #e60000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 2em;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="explanation">
+    <h2>TC-INIT-004: Component Lifecycle: <code>connectedCallback</code> & <code>disconnectedCallback</code></h2>
+    <p><b>Test Case:</b> Verify that the component initializes and cleans up correctly when dynamically added to and removed from the DOM.</p>
+    <p><b>Steps:</b>
+      <ol>
+        <li>Click the "Add Component" button to dynamically add the <code>&lt;ces-messenger&gt;</code> element to the DOM.</li>
+        <li>Observe the component.</li>
+        <li>Click the "Remove Component" button to dynamically remove the component from the DOM.</li>
+      </ol>
+    </p>
+    <p><b>Expected Result:</b>
+        <br>1. The component should initialize and render correctly when added.
+        <br>2. The component should clean up its resources (e.g., event listeners, timers) without errors when removed.
+    </p>
+  </div>
+
+  <button id="clear-session">Clear Session & Reload</button>
+  <button id="addComponent">Add Component</button>
+  <button id="removeComponent">Remove Component</button>
+  <div id="container"></div>
+
+  <script>
+    document.getElementById('addComponent').addEventListener('click', () => {
+      const container = document.getElementById('container');
+      container.innerHTML = `
+        <ces-messenger
+            deployment-id="DEPLOYMENT_ID_GENERIC_CHAT"
+            token-broker-url="TOKEN_BROKER_URL"
+            auto-open-chat="true">
+        </ces-messenger>
+      `;
+    });
+
+    document.getElementById('removeComponent').addEventListener('click', () => {
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+    });
+  </script>
+
+<script>
+  document.getElementById('clear-session').addEventListener('click', () => {
+    console.log('Clearing storage via ces-messenger...');
+    const cesm = document.querySelector('ces-messenger');
+    if (cesm) {
+      cesm.clearStorage({ clearAuthentication: true });
+      console.log('Storage cleared. Reloading page.');
+      window.location.reload();
+    }
+  });
+</script>
+
+</body>
+</html>
