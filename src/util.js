@@ -7,6 +7,14 @@
 import { cesUrlPattern } from '@/agent-config.js';
 
 function getAgentDetails(url) {
+  if (!url) {
+    return {
+      projectId: 'undefined',
+      location: 'undefined',
+      agentId: 'undefined',
+      agentType: 'apps',
+    };
+  }
   const match = url.trim().match(cesUrlPattern);
   if (match) {
     return {

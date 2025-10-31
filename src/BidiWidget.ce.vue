@@ -524,6 +524,12 @@ function validateAgentConfig() {
     return false;
   }
 
+  // Rule 2: a deployment-id or ces-url must be provided
+  if (agentConfig.deploymentId === undefined && agentConfig.cesUrl === undefined) {
+    insertErrorMessage('A deployment ID was not provided. Please correct the configuration and try again.<br/>', true);
+    return false;
+  }
+
   // Future validation rules here
   // ...
 
