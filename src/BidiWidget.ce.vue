@@ -1214,7 +1214,7 @@ function getWebStreamEventListeners() {
       if (!toolMessageHold) flushToolResponses();
 
       // Send the first message, if any, but only if the message stack is empty
-      if (agentConfig.initialMessage != '' && messages.value.length == 0) {
+      if (agentConfig.initialMessage !== undefined && agentConfig.initialMessage != '' && messages.value.length == 0) {
         sessionInput(agentConfig.initialMessage);
         if (!agentConfig.hideInitialMessage) insertMessage('USER', { text: agentConfig.initialMessage });
       }

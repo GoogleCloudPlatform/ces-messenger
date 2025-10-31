@@ -2,6 +2,37 @@
 
 **Objective:** To verify the functionality, stability, and usability of the `<ces-messenger>` web component across different configurations, environments, and use cases. This plan covers all public-facing features documented in the component's `README.md`, `options.md`, and other relevant documentation.
 
+The `test_pages` folder contain a preconfigured test page for each test case. Before using these test pages, you will need to replace the placeholders with the deployment IDs and token broker url you will use:
+
+```bash
+GCS_BUCKET="my-bucket"
+GCS_URL="https://storage.googleapis.com/${GCS_BUCKET}/ces-messenger.js"
+ORIGINAL_URL="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"
+GENERIC_CHAT="" # your generic chat deployment ID
+TEMPLATE_GALLERY_CHAT="" # your template gallery chat deployment ID
+TOKEN_BROKER_URL="" # your token broker url
+
+# copy the current build to a public GCS bucket
+gsutil -h "Cache-Control:public,max-age=300" cp dist/ces-messenger.js gs://${GCS_BUCKET}/ces-messenger.js
+
+# replace the ces-messenger script location by the one of the version we are going to test
+perl -pi.bak -e "s#$ORIGINAL_URL#$GCS_URL#g" test_pages/*.html
+
+# replace agent deployment IDs and token broker url
+perl -pi.bak -e "s#DEPLOYMENT_ID_GENERIC_CHAT#$GENERIC_CHAT#g" test_pages/*.html
+perl -pi.bak -e "s#DEPLOYMENT_ID_TEMPLATE_GALLERY_CHAT#$TEMPLATE_GALLERY_CHAT#g" test_pages/*.html
+perl -pi.bak -e "s#TOKEN_BROKER_URL#$TOKEN_BROKER_URL#g" test_pages/*.html
+```
+
+Once you have updated you test files, start a local web browser on port 8000 from the test_pages folder:
+
+```bash
+cd test_pages
+python3 -m http.server 8000
+```
+
+Now, the links in this page should open the test pages.
+
 ---
 
 ### **1. Component Initialization and Lifecycle**
