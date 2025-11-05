@@ -209,9 +209,19 @@ export class StreamedAudioPlayer extends AudioStreamer {
    * Adds a new audio chunk to the playback queue.
    */
   addChunk(chunk) {
-    const float32ArrayChunk = this.processChunk(chunk);
-    if (float32ArrayChunk == null) return;
-    this.audioQueue.push(float32ArrayChunk);
+    const MAX_CHUNK_LENGTH = 10240;
+    if (chunk.length > MAX_CHUNK_LENGTH) {
+      let segnb = 0;
+      for (let i = 0; i < chunk.length; i += MAX_CHUNK_LENGTH) {
+        segnb++;
+        const chunkSegment = chunk.slice(i, i + MAX_CHUNK_LENGTH);
+        const float32ArrayChunk = this.processChunk(chunkSegment);
+        if (float32ArrayChunk) this.audioQueue.push(float32ArrayChunk);
+      }
+    } else {
+      const float32ArrayChunk = this.processChunk(chunk);
+      if (float32ArrayChunk) this.audioQueue.push(float32ArrayChunk);
+    }
   }
 
   /**
@@ -251,6 +261,7 @@ export class StreamedAudioPlayer extends AudioStreamer {
   stop() {
     if (this.currentSource) {
       try {
+        this.audioQueue = []; // Clear the queue for next chunks
         this.currentSource.stop();
         this.currentSource.disconnect();
       // eslint-disable-next-line no-unused-vars
@@ -273,6 +284,7 @@ export class StreamedAudioPlayer extends AudioStreamer {
    * @private
    */
   _schedulePlayback() {
+    const MAX_CHUNKS_TO_PLAY = 10;
     if (this.audioQueue.length == 0) return;
     // Schedule audio only when we have room in the timeline.
     while (
@@ -280,8 +292,7 @@ export class StreamedAudioPlayer extends AudioStreamer {
       this.nextPlayTime < this.context.currentTime + this.scheduleAheadTime
     ) {
       // Concatenate all chunks currently in the queue.
-      const chunksToPlay = this.audioQueue;
-      this.audioQueue = []; // Clear the queue for next chunks
+      const chunksToPlay = this.audioQueue.splice(0, MAX_CHUNKS_TO_PLAY);
 
       let totalLength = 0;
       for (const chunk of chunksToPlay) {
@@ -321,9 +332,9 @@ export class StreamedAudioPlayer extends AudioStreamer {
         Logger.debug(`[${this.context.currentTime}] audio clip ended playing with actual duration: ${this.context.currentTime-clipStarted}`);
         // If nothing remains to be played from the current buffer, reset the next play time
         if (this.startTimes.length == 0) {
-          this.nextPlayTime = 0;
           // If no additional audio is pending, stop the stream and notify listeners
           if (this.audioQueue.length == 0) {
+            this.nextPlayTime = 0;
             this.stop();
             this.onComplete();
           }
@@ -344,7 +355,7 @@ export class StreamedAudioPlayer extends AudioStreamer {
       source.connect(this.gainNode);
 
       // Schedule it to play at the calculated time.
-      Logger.debug(`[${this.context.currentTime}] playing audio clip (${chunksToPlay.length} chunks) at time ${this.nextPlayTime} with expected duration ${audioBufferDuration}`);
+      Logger.debug(`[${this.context.currentTime}] scheduling audio clip (${chunksToPlay.length} chunks) at ${this.nextPlayTime} with expected duration ${audioBufferDuration}. Next expected at ${this.nextPlayTime + audioBufferDuration}`);
       source.start(this.nextPlayTime);
       // save the start time, so we can calculate the actual clip duration
       this.startTimes.push(this.nextPlayTime);
