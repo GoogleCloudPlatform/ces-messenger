@@ -461,15 +461,18 @@ export class RunSessionAdaptor extends AgentProtocolAdaptor {
           if (message.outputs.partial != undefined) {
             unifiedMessage.partial = message.outputs.partial;
           }
-        }
-
-        if (outputItem.toolCalls) {
+        } else if (outputItem.toolCalls) {
           for (const toolCall of outputItem.toolCalls.toolCalls) {
             const unifiedMessage = {};
             unifiedMessage.type = 'TOOL_CALL';
             unifiedMessage.toolCall = toolCall;
             receivedMessages.push(unifiedMessage);
           }
+        } else if (outputItem.payload) {
+          let unifiedMessage = {};
+          unifiedMessage.type = 'PAYLOAD';
+          unifiedMessage.payload = outputItem.payload;
+          receivedMessages.push(unifiedMessage);
         }
       }
     }
