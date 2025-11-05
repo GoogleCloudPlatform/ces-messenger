@@ -330,7 +330,12 @@ export class BidiRunSessionAdaptor extends AgentProtocolAdaptor {
           unifiedMessage.toolCall = toolCall;
           receivedMessages.push(unifiedMessage);
         }
-      }
+      } else if (message.sessionOutput.payload) {
+          let unifiedMessage = {};
+          unifiedMessage.type = 'PAYLOAD';
+          unifiedMessage.payload = message.sessionOutput.payload;
+          receivedMessages.push(unifiedMessage);
+        }
     }
 
     if (message.recognitionResult) {
