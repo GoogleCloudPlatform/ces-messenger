@@ -72,10 +72,10 @@ This method uses Google's standard OAuth 2.0 flow to authenticate the end-user d
 
 ### 4. Passing an access token
 
-Set the access token via Javascript using the `setAccessToken(token)` function.
+Set the access token via Javascript using the `setAccessToken(token, expirationSeconds=3600)` function.
 
 *   **Use Case**: The web page is already authenticated and has a valid GCP access token.
-*   **How it works**: Use the `setAccessToken(token)` function to pass a valid token.
+*   **How it works**: Use the `setAccessToken(token, expirationSeconds=3600)` function to pass a valid token.
 *   **Implementation**: In your web page, add a script that sets the access token once the ces-messenger widget has been loaded. Make sure you refresh this token and set it again as needed.
 
 ```javascript

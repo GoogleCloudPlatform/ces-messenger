@@ -13,10 +13,10 @@ const accessTokenExpiresAt = ref(null);
 const redirecting = ref(false);
 const AUTH_TOKEN_LEEWAY = 300000; // 5 minutes
 
-function setAccessToken(token) {
+function setAccessToken(token, expirationSeconds=3600) {
   accessToken.value = token;
   localStorage.accessToken = token;
-  accessTokenExpiresAt.value = localStorage.accessTokenExpiresAt = Date.now() + 10000;
+  accessTokenExpiresAt.value = localStorage.accessTokenExpiresAt = Date.now() + expirationSeconds*1000;
 }
 
 function isTokenValid() {
