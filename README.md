@@ -196,7 +196,7 @@ cesm.insertMessage('BOT', { text: 'Here is some information for you.' });
 cesm.insertMessage('BOT', { payload: { html: '<b>Important!</b> Read this.' } });
 ```
 
-### `setAccessToken(token)`
+### `setAccessToken(token, expirationSeconds=3600)`
 
 Sets the access token to authenticate with the agent. This can be used if no token broker is configured.
 
