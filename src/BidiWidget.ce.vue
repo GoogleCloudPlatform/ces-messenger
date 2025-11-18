@@ -741,7 +741,7 @@ async function sessionInput(input) {
     bidiStream.sendMessage(JSON.stringify(message));
 
     // Look for custom events to trigger
-    const inputs = message.inputs || [];
+    const inputs = message.inputs || [ message.realtimeInput ];
     const eventsToSend = new Set();
     const inputMapping = {
       text: 'ces-text-sent',
@@ -750,6 +750,7 @@ async function sessionInput(input) {
       toolResponses: 'ces-tool-response-sent'
    }
     for (const input of inputs) {
+      if (!input) continue;
       for (const [key, value] of Object.entries(inputMapping)) {
         if (input[key]) {
           eventsToSend.add(value);
