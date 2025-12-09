@@ -81,6 +81,9 @@ const WIDGET_ATTRIBUTES = {
   customConfigJson: {
     type: String
   },
+  customCss: {
+    type: String
+  },
   deploymentId: {
     type: String
   },

@@ -75,6 +75,7 @@ See the detailed [authentication documentation](doc/authentication.md).
 | `modality` | The overall style of the widget. `call` mode is a voice-only experience. | `chat`, `call` | `chat` |
 | `theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
 | `size` | The size of the chat widget. | `small`, `large` | `large` |
+| `custom-css` | Custom CSS to inject into the widget's shadow DOM for styling customization. | CSS string | - |
 
 ### DOM Hints for Agent Context
 

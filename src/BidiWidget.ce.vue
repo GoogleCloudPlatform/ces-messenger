@@ -950,6 +950,16 @@ function toggleAudioOutput(newValue) {
 
 onMounted(async () => {
 
+  if (agentConfig.customCss) {
+    // Inject custom CSS into the shadow DOM
+    const shadowRoot = document.querySelector('ces-messenger')?.shadowRoot;
+    if (shadowRoot) {
+      const styleElement = document.createElement('style');
+      styleElement.textContent = agentConfig.customCss;
+      shadowRoot.appendChild(styleElement);
+    }
+  }
+
   loadStateFromSession();
   window.addEventListener('beforeunload', saveStateToSession);
   if (audioHelper.pushToTalk) {
