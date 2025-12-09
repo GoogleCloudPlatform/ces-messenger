@@ -11,22 +11,41 @@
     <div
       v-if="chatUiStatus === 'collapsed' && !agentConfig.disableBubble"
       class="assistant-collapsed"
+      role="button"
+      tabindex="0"
+      aria-label="Open chat"
       @click="open"
+      @keydown.enter="open"
+      @keydown.space.prevent="open"
     >
-      <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconChat)}`">
+      <img
+        :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconChat)}`"
+        alt=""
+      >
     </div>
     <div
       v-if="chatUiStatus === 'expanded'"
       class="assistant-container"
     >
-      <main :class="bidiClasses">
+      <main
+        :class="bidiClasses"
+        role="dialog"
+        aria-label="Chat window"
+      >
         <header>
-          <h1>{{ agentConfig.chatTitle }}</h1>
+          <h1 id="chat-title">
+            {{ agentConfig.chatTitle }}
+          </h1>
           <div v-if="displayMuteButton">
             <div
               v-if="!isCallMode && isAudioPlaying && audioEnabled"
               class="call-circle icon moving"
+              role="button"
+              tabindex="0"
+              aria-label="Mute audio"
               @click="toggleAudioOutput"
+              @keydown.enter="toggleAudioOutput"
+              @keydown.space.prevent="toggleAudioOutput"
             >
               <div class="call-circle-inner">
                 <div
@@ -40,21 +59,41 @@
               v-else
               class="mute-button"
               :class="{ muted: !audioEnabled }"
+              role="button"
+              tabindex="0"
+              :aria-label="audioEnabled ? 'Mute audio' : 'Unmute audio'"
+              :aria-pressed="!audioEnabled"
               @click="toggleAudioOutput"
+              @keydown.enter="toggleAudioOutput"
+              @keydown.space.prevent="toggleAudioOutput"
             />
           </div>
           <div
             class="close-button"
+            role="button"
+            tabindex="0"
+            aria-label="Close chat"
             @click="close"
+            @keydown.enter="close"
+            @keydown.space.prevent="close"
           >
-            <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconClose)}`">
+            <img
+              :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconClose)}`"
+              alt=""
+            >
           </div>
         </header>
-        <ul ref="message-box">
+        <ul
+          ref="message-box"
+          role="log"
+          aria-label="Chat messages"
+          aria-live="polite"
+        >
           <li
             v-for="(message, index) in messages"
             :key="index"
             :data-message-index="index"
+            :aria-label="message.actor === 'USER' ? 'You said' : 'Agent said'"
             :class="{
               'from-user': message.actor === 'USER',
               'from-bot': message.actor === 'BOT',
@@ -97,8 +136,15 @@
               <div
                 v-if="allowUploads && !isCallMode"
                 class="upload-container"
+                role="button"
+                tabindex="0"
+                aria-label="Add an image"
+                aria-haspopup="true"
+                :aria-expanded="showUploadOverlay"
                 draggable="false"
                 @click="uploadHelper.uploadFile()"
+                @keydown.enter="uploadHelper.uploadFile()"
+                @keydown.space.prevent="uploadHelper.uploadFile()"
               >
                 <div class="plus-container">
                   add an image
@@ -109,18 +155,32 @@
                 >
                   <div
                     class="upload-option"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Upload image from file"
                     @click.stop="uploadHelper.triggerFileUpload"
+                    @keydown.enter.stop="uploadHelper.triggerFileUpload"
+                    @keydown.space.prevent.stop="uploadHelper.triggerFileUpload"
                   >
-                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPicture)}`">Upload
-                    image
+                    <img
+                      :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPicture)}`"
+                      alt=""
+                    >Upload image
                   </div>
                   <div
                     v-if="uploadHelper.canTakePicture"
                     class="upload-option"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Take a picture"
                     @click.stop="triggerCameraCapture"
+                    @keydown.enter.stop="triggerCameraCapture"
+                    @keydown.space.prevent.stop="triggerCameraCapture"
                   >
-                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPhoto)}`">Take
-                    picture
+                    <img
+                      :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPhoto)}`"
+                      alt=""
+                    >Take picture
                   </div>
                 </div>
               </div>
@@ -141,11 +201,12 @@
                     <img :src="`${image}`">
                     <button
                       class="remove-image-button"
+                      :aria-label="`Remove image ${index + 1}`"
                       @click="uploadHelper.removeImage(index)"
                     >
                       <img
                         :src="`data:image/svg+xml;utf8,${iconClose}`"
-                        alt="Remove image"
+                        alt=""
                       >
                     </button>
                   </div>
@@ -155,6 +216,7 @@
                   ref="user-input"
                   v-model="currentUserInput"
                   :placeholder="inputPlaceholderText"
+                  aria-label="Type your message"
                   rows="1"
                   @keydown="processInputField"
                 />
@@ -163,8 +225,14 @@
                 v-if="allowInput && showMicButton"
                 class="talk-button"
                 :class="{ talking: !!talking, chat: agentConfig.modality === 'chat' }"
+                role="button"
+                tabindex="0"
+                :aria-label="talking ? 'Stop recording' : 'Start recording'"
+                :aria-pressed="!!talking"
                 draggable="false"
                 @click="audioHelper.setTalkingMode(!talking)"
+                @keydown.enter="audioHelper.setTalkingMode(!talking)"
+                @keydown.space.prevent="audioHelper.setTalkingMode(!talking)"
               >
                 <div
                   v-if="!!talking"
@@ -196,6 +264,7 @@
               <button
                 :disabled="!currentUserInput && imgUploadQueue.length == 0"
                 class="send"
+                aria-label="Send message"
                 @click="submitUserInput"
               >
                 send
@@ -208,6 +277,7 @@
           >
             <button
               class="reconnect-button"
+              aria-label="Start or reconnect conversation"
               @click="reconnect"
             >
               {{ reconnectButtonText }}
