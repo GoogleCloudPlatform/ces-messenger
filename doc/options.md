@@ -130,6 +130,60 @@ See the detailed authentication documentation [here](authentication.md).
 *Optional*. The maximum height (in pixels) to which an uploaded image will be resized if too large.
 *   **Default**: `800`
 
+## Text Customization
+
+These attributes allow you to override the default texts displayed in the widget, enabling localization for international users.
+
+### `text-send-button`
+
+*Optional*. The text displayed on the send button.
+*   **Default**: `send`
+
+### `text-start-conversation`
+
+*Optional*. The text displayed on the button to start or reconnect a conversation.
+*   **Default**: `Start conversation`
+
+### `text-add-image`
+
+*Optional*. The text displayed on the image upload button.
+*   **Default**: `add an image`
+
+### `text-upload-image`
+
+*Optional*. The text displayed for the "upload image from file" option.
+*   **Default**: `Upload image`
+
+### `text-take-picture`
+
+*Optional*. The text displayed for the "take a picture" option (on devices with cameras).
+*   **Default**: `Take picture`
+
+### `text-sign-in-with-google`
+
+*Optional*. The text displayed on the Google Sign-In button (when OAuth is configured).
+*   **Default**: `Sign-in with Google`
+
+### `text-disconnect-user`
+
+*Optional*. The message displayed when the user ends the conversation.
+*   **Default**: `You ended the conversation.`
+
+### `text-disconnect-agent`
+
+*Optional*. The message displayed when the agent ends the conversation.
+*   **Default**: `The agent ended the conversation.`
+
+### `text-disconnect-handover`
+
+*Optional*. The message displayed when the conversation is handed over to a human representative.
+*   **Default**: `The agent requested an escalation to a human representative. This ends the conversation from the virtual agent's perspective.`
+
+### `text-disconnect-unexpected`
+
+*Optional*. The message displayed when the session ends unexpectedly.
+*   **Default**: `The session ended unexpectedly.`
+
 ## Debugging options
 
 ### `show-error-messages`

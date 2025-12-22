@@ -101,7 +101,7 @@
                 @click="uploadHelper.uploadFile()"
               >
                 <div class="plus-container">
-                  add an image
+                  {{ agentConfig.textAddImage }}
                 </div>
                 <div
                   v-if="showUploadOverlay"
@@ -111,16 +111,14 @@
                     class="upload-option"
                     @click.stop="uploadHelper.triggerFileUpload"
                   >
-                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPicture)}`">Upload
-                    image
+                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPicture)}`">{{ agentConfig.textUploadImage }}
                   </div>
                   <div
                     v-if="uploadHelper.canTakePicture"
                     class="upload-option"
                     @click.stop="triggerCameraCapture"
                   >
-                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPhoto)}`">Take
-                    picture
+                    <img :src="`data:image/svg+xml;utf8,${encodeURIComponent(iconPhoto)}`">{{ agentConfig.textTakePicture }}
                   </div>
                 </div>
               </div>
@@ -198,7 +196,7 @@
                 class="send"
                 @click="submitUserInput"
               >
-                send
+                {{ agentConfig.textSendButton }}
               </button>
             </div>
           </div>
@@ -388,7 +386,7 @@ const isCallMode = ref(agentConfig.modality === 'call');
 const messageBox = useTemplateRef('message-box');
 const userInput = useTemplateRef('user-input');
 
-let reconnectButtonText = 'Start conversation';
+let reconnectButtonText = agentConfig.textStartConversation;
 
 // Web stream and Audio Context
 let bidiStream = null;
@@ -495,13 +493,13 @@ const showMicButton = computed(() => {
 const disconnectReasonDescription = computed(() => {
   switch (disconnectReason.value) {
   case 'USER_REQUESTED':
-    return 'You ended the conversation.';
+    return agentConfig.textDisconnectUser;
   case 'AGENT_REQUESTED':
-    return 'The agent ended the conversation.';
+    return agentConfig.textDisconnectAgent;
   case 'HARD_HANDOVER':
-    return 'The agent requested an escalation to a human representative. This ends the conversation from the virtual agent\'s perspective';
+    return agentConfig.textDisconnectHandover;
   default:
-    return 'The session ended unexpectedly.';
+    return agentConfig.textDisconnectUnexpected;
   }
 });
 
@@ -812,7 +810,7 @@ const startConversation = async () => {
     if (agentConfig.oauthClientId) {
       const context = {
         image: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
-        text: 'Sign-in with Google',
+        text: agentConfig.textSignInWithGoogle,
         onclick: `window.kite.googleOauthSignIn('${getNextMessageId()}')`
       }
       insertRichMessage('cesm_button', context);

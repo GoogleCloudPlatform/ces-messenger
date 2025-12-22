@@ -76,6 +76,25 @@ See the detailed [authentication documentation](doc/authentication.md).
 | `theme-id` | The color theme for the widget. | `light`, `dark` | `light` |
 | `size` | The size of the chat widget. | `small`, `large` | `large` |
 
+### Text Customization
+
+The widget supports text customization for international users. You can override default texts using these attributes:
+
+| Attribute | Description | Default |
+|---|---|---|
+| `text-send-button` | Text on the send button. | `send` |
+| `text-start-conversation` | Text on the start/reconnect button. | `Start conversation` |
+| `text-add-image` | Text on the image upload button. | `add an image` |
+| `text-upload-image` | Text for "upload image" option. | `Upload image` |
+| `text-take-picture` | Text for "take picture" option. | `Take picture` |
+| `text-sign-in-with-google` | Text on Google Sign-In button. | `Sign-in with Google` |
+| `text-disconnect-user` | Message when user ends conversation. | `You ended the conversation.` |
+| `text-disconnect-agent` | Message when agent ends conversation. | `The agent ended the conversation.` |
+| `text-disconnect-handover` | Message on handover to human. | `The agent requested an escalation...` |
+| `text-disconnect-unexpected` | Message on unexpected disconnect. | `The session ended unexpectedly.` |
+
+For a complete list of options, see the detailed [options documentation](doc/options.md).
+
 ### DOM Hints for Agent Context
 
 The messenger includes a "DOM Hints" feature that allows you to provide your agent with real-time contextual information from your webpage's DOM (e.g., shopping cart contents, form data). This gives the agent "eyes" on the page, allowing it to see what the user sees and have more relevant conversations.
