@@ -81,6 +81,9 @@ const WIDGET_ATTRIBUTES = {
   customConfigJson: {
     type: String
   },
+  customCss: {
+    type: String
+  },
   deploymentId: {
     type: String
   },
@@ -117,6 +120,36 @@ const WIDGET_ATTRIBUTES = {
   },
   // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
   languageCode: {
+    type: String
+  },
+  textSendButton: {
+    type: String
+  },
+  textStartConversation: {
+    type: String
+  },
+  textAddImage: {
+    type: String
+  },
+  textUploadImage: {
+    type: String
+  },
+  textTakePicture: {
+    type: String
+  },
+  textSignInWithGoogle: {
+    type: String
+  },
+  textDisconnectUser: {
+    type: String
+  },
+  textDisconnectAgent: {
+    type: String
+  },
+  textDisconnectHandover: {
+    type: String
+  },
+  textDisconnectUnexpected: {
     type: String
   },
   oauthClientId: {
@@ -162,6 +195,16 @@ const WIDGET_DEFAULTS = {
   inputPlaceholderText: 'What do you need help with?',
   // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
   languageCode: 'en-US',
+  textSendButton: 'send',
+  textStartConversation: 'Start conversation',
+  textAddImage: 'add an image',
+  textUploadImage: 'Upload image',
+  textTakePicture: 'Take picture',
+  textSignInWithGoogle: 'Sign-in with Google',
+  textDisconnectUser: 'You ended the conversation.',
+  textDisconnectAgent: 'The agent ended the conversation.',
+  textDisconnectHandover: 'The agent requested an escalation to a human representative. This ends the conversation from the virtual agent\'s perspective.',
+  textDisconnectUnexpected: 'The session ended unexpectedly.',
   modality: 'chat',
   showErrorMessages: false,
   // STREAMING_MODE_BASIC, STREAMING_MODE_PROACTIVE, STREAMING_MODE_PASSTHROUGH
