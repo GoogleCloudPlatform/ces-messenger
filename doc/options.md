@@ -95,6 +95,34 @@ See the detailed authentication documentation [here](authentication.md).
 *   **Values**: `light` | `dark`
 *   **Default**: `light`
 
+### `custom-css`
+
+*Optional*. Custom CSS styles to inject into the widget's shadow DOM. This allows integrators to customize the widget's appearance without having to manually inject CSS.
+
+**Example:**
+```html
+<ces-messenger
+  deployment-id="..."
+
+  custom-css="
+    * {
+      --brand-color: #007bff;
+      --text-color: #f0f0f0;
+    }
+    main {
+      background: var(--text-color) !important;
+    }
+    header h1 {
+      color: var(--brand-color) !important;
+    }
+    button:not(.send) {
+      color: var(--text-color) !important;
+      background: var(--brand-color) !important;
+    }
+  "
+></ces-messenger>
+```
+
 ## Behavior
 
 ### `enable-live-transcription`
