@@ -20,6 +20,10 @@ if [[ -z "${AUTHORIZED_ORIGINS:-}" ]]; then
   exit 1
 fi
 
+# 2. Check for ENABLE_LOCAL_SIGNING, default to "false" if not set
+# Usage: export ENABLE_LOCAL_SIGNING="true" to enable.
+ENABLE_LOCAL_SIGNING="${ENABLE_LOCAL_SIGNING:-false}"
+
 REGION="us-central1"
 
 TOKEN_BROKER_SA_NAME="ces-token-broker"
@@ -35,6 +39,10 @@ OAUTH_SCOPES="https://www.googleapis.com/auth/cloud-platform"
 FUNCTION_NAME="ces-token-broker"
 ENTRY_POINT="get_access_token" # The name of the Python function to execute.
 
+# Secret Manager Configurations
+SECRET_NAME="token-broker-sa-key"
+LOCAL_KEY_FILE="temp-sa-key.json"
+
 # Construct full SA email addresses
 TOKEN_BROKER_SA_EMAIL="${TOKEN_BROKER_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -47,6 +55,7 @@ gcloud services enable \
     iam.googleapis.com \
     cloudresourcemanager.googleapis.com \
     cloudfunctions.googleapis.com \
+    secretmanager.googleapis.com \
     --project="$PROJECT_ID"
 echo "   - Services enabled."
 
@@ -76,6 +85,50 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --condition=None # Explicitly set no condition
 echo "   - Role granted successfully."
 
+# --- 3. Conditional Secret Manager Setup ---
+# Initialize deployment variables
+DEPLOY_MOUNT_FLAG=""
+# Default env var to false; will be overwritten if enabled
+DEPLOY_ENV_VAR_FLAG="ENABLE_LOCAL_SIGNING=false"
+
+if [ "$ENABLE_LOCAL_SIGNING" = "true" ]; then
+    echo
+    echo "3. [Local Signing Enabled] Setting up Secret Manager..."
+
+    # 3a. Generate Key
+    echo "   - Generating new private key file..."
+    gcloud iam service-accounts keys create "$LOCAL_KEY_FILE" \
+        --iam-account="$TOKEN_BROKER_SA_EMAIL" \
+        --project="$PROJECT_ID"
+
+    # 3b. Create Secret Container
+    if ! gcloud secrets describe "$SECRET_NAME" --project="$PROJECT_ID" &>/dev/null; then
+        echo "   - Creating Secret '$SECRET_NAME'..."
+        gcloud secrets create "$SECRET_NAME" --replication-policy="automatic" --project="$PROJECT_ID"
+    fi
+
+    # 3c. Upload Key
+    echo "   - Uploading key to Secret Manager..."
+    gcloud secrets versions add "$SECRET_NAME" --data-file="$LOCAL_KEY_FILE" --project="$PROJECT_ID"
+    
+    # Clean up local file securely
+    rm "$LOCAL_KEY_FILE"
+
+    # 3d. Grant Access
+    echo "   - Granting Secret Accessor role..."
+    gcloud secrets add-iam-policy-binding "$SECRET_NAME" \
+        --member="serviceAccount:${TOKEN_BROKER_SA_EMAIL}" \
+        --role="roles/secretmanager.secretAccessor" \
+        --project="$PROJECT_ID" > /dev/null
+
+    # 3e. Set Deployment Flags for Secret Mount
+    DEPLOY_MOUNT_FLAG="--mount-secret /secrets/token-broker-sa-key=${SECRET_NAME}:latest"
+    DEPLOY_ENV_VAR_FLAG="ENABLE_LOCAL_SIGNING=true"
+else
+    echo
+    echo "3. [Local Signing Disabled] Skipping Secret Manager setup."
+fi
+
 # --- 5. Deploy Cloud Function ---
 echo
 echo "5. Deploying Cloud Function..."
@@ -94,12 +147,15 @@ export ENTRY_POINT="$ENTRY_POINT"
 export AUTHORIZED_ORIGINS="$AUTHORIZED_ORIGINS"
 export REGION="$REGION"
 export OAUTH_SCOPES="$OAUTH_SCOPES"
+export PROJECT_ID="$PROJECT_ID"
+export ENABLE_LOCAL_SIGNING="$ENABLE_LOCAL_SIGNING"
+export SECRET_NAME="$SECRET_NAME"
 
 # Execute the deploy script
 ../script/deploy.sh
 
 # Unset environment variables to avoid leakage
-unset SERVICE_ACCOUNT ENTRY_POINT AUTHORIZED_ORIGINS
+unset SERVICE_ACCOUNT ENTRY_POINT AUTHORIZED_ORIGINS ENABLE_LOCAL_SIGNING SECRET_NAME
 
 cd "$CURRENT_DIR" # Return to original directory
 
