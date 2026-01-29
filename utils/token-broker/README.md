@@ -9,6 +9,7 @@ This repository contains a Google Cloud Function designed to return service acco
 -   **CORS Handling**: Includes built-in Cross-Origin Resource Sharing (CORS) handling for both preflight (`OPTIONS`) and main (`GET`) requests, restricted to allowlisted origins.
 -   **Dynamic CORS domains**: Reads the allowed domains from the `AUTHORIZED_ORIGINS` environment variable.
 -   **Token caching**: Returns the latest refreshed token, if not older that `TOKEN_TTL` (env var) seconds to prevent token API quota errors.
+-   **Signed JWT Support**: Can be configured to issue self-signed JWTs (via `TOKEN_TYPE=jwt`) instead of OAuth2 access tokens, with support for session isolation.
 
 ---
 
@@ -40,12 +41,15 @@ To run the deployment script, you will need to first set two environment variabl
 
 * `AUTHORIZED_ORIGINS`: the list of authorized domains, separated with semicolons. E.g. ``.
 
+* `TOKEN_TYPE`: (Optional) The type of token to generate. Options: `access_token` (default) or `jwt`.
+
 Example:
 
 ```bash
 export PROJECT_ID='your-gcp-project-id'
 export REGION="europe-west1"
 export AUTHORIZED_ORIGINS='https://my-domain.com;https://my-domain-stg.com:3000'
+export TOKEN_TYPE="jwt"
 
 ./deploy.sh
 ```
@@ -158,3 +162,18 @@ curl -i -X OPTIONS http://localhost:8080 \
 ```
 
 You should receive a `204 No Content` response with the appropriate `Access-Control-*` headers.
+
+### Using Signed JWTs
+
+If deployed with `TOKEN_TYPE=jwt`, the broker generates self-signed JWTs instead of OAuth2 access tokens.
+**Note**: In this mode, caching is disabled to ensure unique signatures per request.
+
+**Requesting a Session-Specific JWT:**
+When requesting a JWT, you **MUST** provide a `target_session` in the JSON request body. This value is included in the `ces_session` claim of the generated JWT.
+
+```bash
+curl -i -X GET http://localhost:8080 \
+  -H "Origin: http://localhost:5173" \
+  -H "Content-Type: application/json" \
+  -d '{"target_session": "projects/your-project-id/locations/your-location/apps/your-app-id/sessions/your-session-id"}'
+```

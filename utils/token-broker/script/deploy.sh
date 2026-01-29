@@ -7,6 +7,11 @@ if [[ -n "${AUTHORIZED_ORIGINS:-}" ]]; then
   ENV_VARS+=",AUTHORIZED_ORIGINS=$AUTHORIZED_ORIGINS"
 fi
 
+# Add TOKEN_TYPE only if it's set and not empty
+if [[ -n "${TOKEN_TYPE:-}" ]]; then
+  ENV_VARS+=",TOKEN_TYPE=$TOKEN_TYPE"
+fi
+
 gcloud functions deploy $FUNCTION_NAME \
     --runtime=python312 \
     --gen2 \
