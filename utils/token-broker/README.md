@@ -172,7 +172,7 @@ If deployed with `TOKEN_TYPE=jwt`, the broker generates self-signed JWTs instead
 When requesting a JWT, you **MUST** provide a `target_session` in the JSON request body. This value is included in the `ces_session` claim of the generated JWT.
 
 ```bash
-curl -i -X GET http://localhost:8080 \
+curl -i -X POST http://localhost:8080 \
   -H "Origin: http://localhost:5173" \
   -H "Content-Type: application/json" \
   -d '{"target_session": "projects/your-project-id/locations/your-location/apps/your-app-id/sessions/your-session-id"}'

@@ -103,7 +103,6 @@ export SERVICE_ACCOUNT="$TOKEN_BROKER_SA_EMAIL"
 export ENTRY_POINT="$ENTRY_POINT"
 export AUTHORIZED_ORIGINS="$AUTHORIZED_ORIGINS"
 export REGION="$REGION"
-export REGION="$REGION"
 export OAUTH_SCOPES="$OAUTH_SCOPES"
 export TOKEN_TYPE="${TOKEN_TYPE:-access_token}" # Default to access_token if not set
 
