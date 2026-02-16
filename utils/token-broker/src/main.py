@@ -25,11 +25,15 @@ import time
 
 import functions_framework
 import google.auth
+from google.cloud import iam_credentials_v1
 from google.api_core import exceptions
-from google.auth.transport import requests
+import google.auth.transport.requests
+import requests
 
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
+AUDIENCE = "https://ces.googleapis.com/"
+
 
 
 def print_log(severity, message):
@@ -108,7 +112,7 @@ def get_access_token(request):
         headers = {
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Max-Age": "3600",
         }
@@ -121,10 +125,45 @@ def get_access_token(request):
         # the headers dict will be empty, and the browser will block the request.
         return ("", 204, headers)
 
-    # This function should only handle GET requests for the main logic.
-    if request.method != "GET":
+    # This function should only handle GET and POST requests for the main logic.
+    if request.method not in ["GET", "POST"]:
         return {"error": "Method Not Allowed"}, 405, headers
 
+    # Determine token type
+    token_type = os.environ.get("TOKEN_TYPE", "access_token")
+
+    # If in JWT mode, we ALWAYS generate a fresh token (no caching)
+    # This is to support session isolation and ensure every request gets a unique signature if needed.
+    if token_type == "jwt":
+        target_session = None
+        
+        # Try to get session from JSON body (allow missing Content-Type header)
+        try:
+             request_json = request.get_json(force=True, silent=True)
+             if request_json:
+                 target_session = request_json.get("target_session")
+        except Exception:
+             pass # Ignore parsing errors
+                 
+        if target_session:
+             print_log("DEBUG", f"Generating session-specific JWT for session: {target_session}")
+        else:
+             return {"error": "Missing required field: target_session"}, 400, headers
+        
+        jwt_token, expiry_time = generate_jwt_payload_and_sign(target_session=target_session)
+
+        
+        if jwt_token:
+            return {
+                "access_token": jwt_token,
+                "expiry": expiry_time * 1000
+            }, 200, headers
+        else:
+            return {
+                "error": "Failed to generate signed JWT. Check server logs."
+            }, 500, headers
+
+    # For OAUTH2 mode
     # Check if the token is cached and not expired
     if (
         CURRENT_TOKEN
@@ -134,7 +173,7 @@ def get_access_token(request):
         print_log("DEBUG", "Returning cached access token.")
     else:  # Otherwise, refresh it
         print_log("DEBUG", "Cached token is expired or missing. Refreshing...")
-        if not refresh_token():
+        if not generate_oauth_token():
             # If refresh fails, return an error. This ensures logs are flushed.
             return (
                 {
@@ -147,7 +186,7 @@ def get_access_token(request):
     return CURRENT_TOKEN, 200, headers  # Return the (newly) cached token
 
 
-def refresh_token():
+def generate_oauth_token():
     """
     Generates an access token using Application Default Credentials and saves it
     in a global variable.
@@ -184,7 +223,7 @@ def refresh_token():
         credentials, _ = google.auth.default(scopes=scopes)
 
         # The token needs to be refreshed to be valid.
-        credentials.refresh(requests.Request())
+        credentials.refresh(google.auth.transport.requests.Request())
         access_token = credentials.token
         expiry = credentials.expiry
 
@@ -215,3 +254,78 @@ def refresh_token():
     except Exception as e:
         print_log("ERROR", f"An unexpected error occurred: {e}")
         return False
+
+
+def generate_jwt_payload_and_sign(target_session):
+    """
+    Helper function to generate a signed JWT using IAMCredentialsClient.
+    
+    Args:
+        target_session (str): The session ID to include in the 'ces_session' claim.
+        
+    Returns:
+        tuple: (jwt_token_string, expiry_timestamp_seconds) or (None, None) on failure.
+    """
+    try:
+        # 1. Get scopes for the payload
+        scopes_str = os.environ.get("OAUTH_SCOPES", "")
+        scopes = [scope.strip() for scope in scopes_str.split(",") if scope.strip()]
+        
+        # 2. Get credentials to determine service account principal
+        credentials, _ = google.auth.default(scopes=scopes)
+        
+        sa_email = getattr(credentials, "service_account_email", "default")
+
+        # If 'default' or missing, try to fetch from Metadata Server (Cloud Run/Functions environment)
+        if sa_email == "default":
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+                    headers={"Metadata-Flavor": "Google"}
+                )
+                with urllib.request.urlopen(req) as response:
+                    sa_email = response.read().decode("utf-8").strip()
+            except Exception as e:
+                print_log("WARNING", f"Failed to fetch SA email from Metadata Server: {e}")
+                sa_email = "unknown" # Let the client fail if it can't find it
+        
+        if sa_email == "unknown":
+             print_log("ERROR", "Could not determine service account email.")
+             return None, None
+
+        # 3. Create IAM Credentials Client
+        client = iam_credentials_v1.IAMCredentialsClient()
+
+        # 4. Construct Payload
+        service_account_name = f"projects/-/serviceAccounts/{sa_email}"
+        
+        now = int(time.time())
+        expiry_time = now + 3600
+        
+        payload = {
+            "iss": sa_email,
+            "sub": sa_email,
+            "aud": AUDIENCE,
+            "iat": now,
+            "exp": expiry_time,
+            "scope": " ".join(scopes),
+            "ces_session": target_session
+        }
+        
+        # 5. Sign JWT
+        print_log("DEBUG", f"Signing JWT for {sa_email} using IAMCredentialsClient...")
+        
+        response = client.sign_jwt(
+            name=service_account_name,
+            delegates=[],
+            payload=json.dumps(payload)
+        )
+        
+        jwt_token = response.signed_jwt
+        
+        return jwt_token, expiry_time
+
+    except Exception as e:
+        print_log("ERROR", f"Failed to generate signed JWT: {e}")
+        return None, None

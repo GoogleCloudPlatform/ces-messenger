@@ -76,6 +76,16 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --condition=None # Explicitly set no condition
 echo "   - Role granted successfully."
 
+# --- 3. Grant Service Account Token Creator Role (Self-Impersonation) ---
+echo
+echo "3. Granting 'roles/iam.serviceAccountTokenCreator' to '$TOKEN_BROKER_SA_EMAIL' (for JWT signing)..."
+gcloud iam service-accounts add-iam-policy-binding "$TOKEN_BROKER_SA_EMAIL" \
+    --project="$PROJECT_ID" \
+    --member="serviceAccount:${TOKEN_BROKER_SA_EMAIL}" \
+    --role="roles/iam.serviceAccountTokenCreator" \
+    --condition=None
+echo "   - Role granted successfully."
+
 # --- 5. Deploy Cloud Function ---
 echo
 echo "5. Deploying Cloud Function..."
@@ -94,12 +104,13 @@ export ENTRY_POINT="$ENTRY_POINT"
 export AUTHORIZED_ORIGINS="$AUTHORIZED_ORIGINS"
 export REGION="$REGION"
 export OAUTH_SCOPES="$OAUTH_SCOPES"
+export TOKEN_TYPE="${TOKEN_TYPE:-access_token}" # Default to access_token if not set
 
 # Execute the deploy script
 ../script/deploy.sh
 
 # Unset environment variables to avoid leakage
-unset SERVICE_ACCOUNT ENTRY_POINT AUTHORIZED_ORIGINS
+unset SERVICE_ACCOUNT ENTRY_POINT AUTHORIZED_ORIGINS TOKEN_TYPE
 
 cd "$CURRENT_DIR" # Return to original directory
 
