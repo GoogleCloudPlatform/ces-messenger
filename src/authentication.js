@@ -81,8 +81,11 @@ async function refreshToken(env, agentId, sessionId) {
       accessToken.value = data[tokenKey];
       accessTokenExpiresAt.value = typeof data[expiryKey] === 'number' && !isNaN(data[expiryKey]) ? data[expiryKey] : (new Date(data[expiryKey])).getTime();
 
-      localStorage.accessToken = accessToken.value;
-      localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
+      // Tokens received from the managed token broker cannot be reused across sessions.
+      if (agentConfig.tokenBrokerUrl.toUpperCase() != 'MANAGED') {
+        localStorage.accessToken = accessToken.value;
+        localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
+      }
       Logger.debug('Token received from token broker:', data);
       return true;
     } else {

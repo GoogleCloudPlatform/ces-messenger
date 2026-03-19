@@ -1504,6 +1504,10 @@ function getWebStreamEventListeners() {
           } else if (message.type === 'CONTROL_SIGNAL' && message.agentDisconnect) {
             if (message.disconnectReason) {
               disconnectReason.value = message.disconnectReason;
+              // Tokens provided by the managed token broker cannot be reused across sessions
+              if (message.disconnectReason == 'AGENT_REQUESTED' && agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
+                signOut();
+              }
             }
             // Only disconnect if there is no audio playing, otherwise wait for audio to complete.
             if (!isAudioPlaying.value) {
