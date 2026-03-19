@@ -10,7 +10,7 @@ GCS_URL="https://storage.googleapis.com/${GCS_BUCKET}/ces-messenger.js"
 ORIGINAL_URL="https://www.gstatic.com/ces-console/fast/ces-messenger/ces-messenger.js"
 GENERIC_CHAT="" # your generic chat deployment ID
 TEMPLATE_GALLERY_CHAT="" # your template gallery chat deployment ID
-TOKEN_BROKER_URL="" # your token broker url
+TOKEN_BROKER_URL="MANAGED" # your token broker url
 
 # copy the current build to a public GCS bucket
 gsutil -h "Cache-Control:public,max-age=300" cp dist/ces-messenger.js gs://${GCS_BUCKET}/ces-messenger.js

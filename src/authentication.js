@@ -7,6 +7,7 @@
 import { ref } from 'vue';
 import { Logger } from '@/logger.js';
 import { agentConfigInstance } from '@/agent-config.js';
+import { CES_HTTP_ENDPOINTS } from '@/agent-config.js';
 
 const accessToken = ref(null);
 const accessTokenExpiresAt = ref(null);
@@ -23,7 +24,7 @@ function isTokenValid() {
   return accessToken.value != null && accessTokenExpiresAt.value != null && accessTokenExpiresAt.value > (Date.now() + AUTH_TOKEN_LEEWAY);
 }
 
-async function authenticate() {
+async function authenticate(env, agentId, sessionId) {
   const agentConfig = agentConfigInstance.config;
   // handle tokens from local storage
   if (localStorage.accessToken) {
@@ -38,7 +39,8 @@ async function authenticate() {
 
   // If we have a token broker configured, go get the token from there
   if (agentConfig.tokenBrokerUrl) {
-    return await refreshToken();
+    console.log(env, agentId, sessionId);
+    return await refreshToken(env, agentId, sessionId);
     // Clean up local storage and give up. Authentication will need to be done via OAuth
   } else {
     signOut();
@@ -46,16 +48,38 @@ async function authenticate() {
   }
 }
 
-async function refreshToken() {
+async function refreshToken(env, agentId, sessionId) {
   const agentConfig = agentConfigInstance.config;
   if (!agentConfig.tokenBrokerUrl) return false;
 
   try {
-    const response = await fetch(agentConfig.tokenBrokerUrl, { credentials: 'include' });
+    let response;
+    let tokenKey = 'access_token';
+    let expiryKey = 'expiry';
+
+    if (agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
+      tokenKey = 'chatToken';
+      expiryKey = 'expireTime';
+
+      const requestBody = {
+        deployment: agentConfig.deploymentId
+      };
+
+      const tokenBrokerUrl = `https://${CES_HTTP_ENDPOINTS[env]}/v1/${agentId}/sessions/${sessionId}:generateChatToken`;
+      response = await fetch(tokenBrokerUrl, { 
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+    } else {
+      response = await fetch(agentConfig.tokenBrokerUrl, { credentials: 'include' });
+    }
+
     const data = await response.json();
-    if (data.access_token && data.expiry) {
-      accessToken.value = data.access_token;
-      accessTokenExpiresAt.value = typeof data.expiry === 'number' && !isNaN(data.expiry) ? data.expiry : (new Date(data.expiry)).getTime();
+    if (data[tokenKey] && data[expiryKey]) {
+      accessToken.value = data[tokenKey];
+      accessTokenExpiresAt.value = typeof data[expiryKey] === 'number' && !isNaN(data[expiryKey]) ? data[expiryKey] : (new Date(data[expiryKey])).getTime();
 
       localStorage.accessToken = accessToken.value;
       localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;

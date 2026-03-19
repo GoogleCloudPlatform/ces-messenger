@@ -800,7 +800,7 @@ async function sessionInput(input) {
   // If in connectionless mode (RunSession), check that the token is still valid
   // before sending a message
   if (bidiStream.connectionless && !isTokenValid()) {
-    await refreshToken();
+    await refreshToken(agentEnv.value, bidiAdaptor.appString, bidiAdaptor.sessionId);
     // update the token of the RunSession bidiStrem (since it needs the token on
     // every request, and never disconnects)
     if (bidiStream instanceof HttpRequestResponseStream) bidiStream.accessToken = accessToken.value;
@@ -878,7 +878,7 @@ const startConversation = async () => {
   }
 
   // If no valid authentication found, add the auth button to the message stack
-  if (!(await authenticate())) {
+  if (!(await authenticate(agentEnv.value, bidiAdaptor.appString, bidiAdaptor.sessionId))) {
     if (agentConfig.oauthClientId) {
       const context = {
         image: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
@@ -1052,7 +1052,7 @@ onMounted(async () => {
         messageBox.value.scrollTop = messageBox.value.scrollHeight;
       }
     });
-    if (await authenticate()) {
+    if (await authenticate(agentEnv.value, bidiAdaptor.appString, bidiAdaptor.sessionId)) {
       if (isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
         needsUserInteractionToResume.value = true;
       } else {

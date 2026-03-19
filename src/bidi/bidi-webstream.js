@@ -339,7 +339,7 @@ class HttpRequestResponseStream {
       if (apiUri?.match(/^https:\/\//)) {
         this.sessionUrl = `${apiUri}/${this.agentId}/sessions/${this.sessionId}:runSession`;
       } else {
-        this.sessionUrl = `https://${CES_HTTP_ENDPOINTS[env]}/v1beta/${this.agentId}/sessions/${this.sessionId}:runSession`;
+        this.sessionUrl = `https://${CES_HTTP_ENDPOINTS[env]}/v1/${this.agentId}/sessions/${this.sessionId}:runSession`;
       }
     }
   }
