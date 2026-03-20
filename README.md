@@ -290,6 +290,10 @@ window.addEventListener('ces-messenger-connected', () => {
 
 Fired when the connection to the agent is closed. The `event.detail` object contains a `disconnectReason`.
 
+### `ces-end-session`
+
+Fired when the agent sends an `endSession` message. The `event.detail` object contains the full `endSession` message.
+
 ### `ces-authentication-error`
 
 Fired when there is an authentication error.
