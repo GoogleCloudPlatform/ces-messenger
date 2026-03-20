@@ -412,7 +412,6 @@ const audioHelper = new AudioHelper(
       isAudioPlaying.value = false;
       // A session disconnect was requested
       if (disconnectReason.value) {
-        Logger.log('Disconnecting with reason:', disconnectReason.value);
         pauseConversation();
         disconnectWebStream(disconnectReason.value);
       }
@@ -1101,8 +1100,10 @@ function close() {
 };
 
 function reconnect() {
-  // If last attempt was in error, clear the local storage
-  if (messages.value.length > 0 && messages.value[messages.value.length - 1].msg_type === 'ERROR_MESSAGE') {
+  // If last attempt was in error or the session was terminated, clear the local storage.
+  if (messages.value.length > 0 &&
+      (messages.value[messages.value.length - 1].msg_type === 'ERROR_MESSAGE' ||
+      reconnectButtonText == agentConfig.textStartConversation)) {
     Logger.log('Clearing local storage before next connection attempt.');
     if (bidiAdaptor) bidiAdaptor.endSession();
     clearStorage({ clearAuthentication: true });
@@ -1307,6 +1308,7 @@ function getWebStreamEventListeners() {
       if (!(['USER_REQUESTED', 'AGENT_REQUESTED', 'HARD_HANDOVER', 'AUTHENTICATION_ERROR'].includes(disconnectReason.value))) disconnectReason.value = 'UNKNOWN';
 
       if (bidiStream && !bidiStream.connectionless) isConnected.value = false;
+      reconnectButtonText = agentConfig.textStartConversation;
 
       if (disconnectReason.value === 'UNKNOWN') {
         Logger.warn('BidiStream disconnected.');
@@ -1503,10 +1505,15 @@ function getWebStreamEventListeners() {
             }
           } else if (message.type === 'CONTROL_SIGNAL' && message.agentDisconnect) {
             if (message.disconnectReason) {
+              console.log(`Disconnect message received. disconnectReason: ${message.disconnectReason}`);
+              console.debug(message);
               disconnectReason.value = message.disconnectReason;
               // Tokens provided by the managed token broker cannot be reused across sessions
               if (message.disconnectReason == 'AGENT_REQUESTED' && agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
                 signOut();
+              }
+              if (message.endSession) {
+                window.dispatchEvent(new CustomEvent('ces-end-session', { detail: { endSession: message.endSession } }));
               }
             }
             // Only disconnect if there is no audio playing, otherwise wait for audio to complete.

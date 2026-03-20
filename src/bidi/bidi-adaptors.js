@@ -368,7 +368,10 @@ export class BidiRunSessionAdaptor extends AgentProtocolAdaptor {
       let unifiedMessage = {};
       unifiedMessage.type = 'CONTROL_SIGNAL';      
       unifiedMessage.agentDisconnect = true;
+      unifiedMessage.disconnectReason = 'AGENT_REQUESTED';
+      unifiedMessage.endSession = message.endSession;
       receivedMessages.push(unifiedMessage);
+      this.endSession();
     }
 
     // Half-close initiated by the server
@@ -473,6 +476,14 @@ export class RunSessionAdaptor extends AgentProtocolAdaptor {
           unifiedMessage.type = 'PAYLOAD';
           unifiedMessage.payload = outputItem.payload;
           receivedMessages.push(unifiedMessage);
+        } else if (outputItem.endSession) {
+          let unifiedMessage = {};
+          unifiedMessage.type = 'CONTROL_SIGNAL';
+          unifiedMessage.agentDisconnect = true;
+          unifiedMessage.disconnectReason = 'AGENT_REQUESTED';
+          unifiedMessage.endSession = outputItem.endSession;
+          receivedMessages.push(unifiedMessage);
+          this.endSession();
         }
       }
     }
