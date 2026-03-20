@@ -33,7 +33,7 @@ You must specify at least one of the following options for authentication to hap
 
 ### `token-broker-url`
 
-If specified, this URL is called with a GET request to obtain a token that will be used to authenticate against the agent. If both `token-broker-url` and `oauth-client-id` are provided, `token-broker-url` will take precedence.
+If specified, this URL is called with a GET request to obtain a token that will be used to authenticate against the agent. If this parameter is set to `MANAGED`, the default managed token broker will be used. If both `token-broker-url` and `oauth-client-id` are provided, `token-broker-url` will take precedence.
 
 ### `api-uri`
 

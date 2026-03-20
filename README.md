@@ -18,7 +18,7 @@ To add the `ces-messenger` to your web page, include the component's JavaScript 
     <ces-messenger
       deployment-id="projects/your-project-id/locations/your-location/agents/your-agent-id/deployments/your-deployment-id"
       chat-title="My Awesome Agent"
-      token-broker-url="https://your.token.broker/url"
+      token-broker-url="MANAGED"
       initial-message="Hello"
       auto-open-chat="true"
       audio-input-mode="DEFAULT_OFF"
@@ -53,7 +53,7 @@ For a comprehensive list of all available options and their default values, see 
 
 | Attribute | Description | Example |
 |---|---|---|
-| `token-broker-url` | A URL to a service that provides an access token for authentication. This is an alternative to `oauth-client-id`. | `https://your.token.broker/get-token` |
+| `token-broker-url` | A URL to a service that provides an access token for authentication, or `MANAGED`, to use the default token broker. This is an alternative to `oauth-client-id`. | `https://your.token.broker/get-token` |
 | `api-uri` | The base URI to be used for requests in the case of text-only mode, or a websocket url to be used as websocket proxy for audio sessions. This can be useful if you need to send requests via a proxy to handle authentication or other network considerations. | `https://your-proxy.example.com/` or `wss://your-proxy.example.com/` | |
 | `oauth-client-id` | The OAuth 2.0 Client ID for authenticating the end-user. | `your-client-id.apps.googleusercontent.com` |
 
