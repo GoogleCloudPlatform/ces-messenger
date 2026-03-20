@@ -20,7 +20,7 @@
     "random-id": "^1.0.4",
     "vue": "^3.5.18",
     "vue3-google-login": "^2.0.33",
-    "dompurify": "3.2.7"
+    "dompurify": "3.3.2"
   },
   "devDependencies": {
     "@firebase/webchannel-wrapper": "1.0.4",
