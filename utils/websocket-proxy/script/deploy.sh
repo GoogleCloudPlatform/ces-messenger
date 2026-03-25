@@ -82,6 +82,18 @@ echo "3. Deploying Cloud Run service '$SERVICE_NAME' from source folder '$SOURCE
 
 ENV_VARS="WEBSOCKET_SERVER_PORT=8080,OAUTH_SCOPES=$OAUTH_SCOPES"
 
+# Add authorized origins for WebSocket origin verification.
+# Expected format: semicolon-separated list of origins.
+# Example: AUTHORIZED_ORIGINS="https://www.google.com;https://staging.google.com;https://beta.google.com"
+if [[ -n "${AUTHORIZED_ORIGINS:-}" ]]; then
+  ENV_VARS+=",AUTHORIZED_ORIGINS=$AUTHORIZED_ORIGINS"
+fi
+
+# Allow localhost origins (for development only). Set to "true" to enable.
+if [[ -n "${ALLOW_LOCALHOST:-}" ]]; then
+  ENV_VARS+=",ALLOW_LOCALHOST=$ALLOW_LOCALHOST"
+fi
+
 # Add dev endpoints, if defined
 if [[ -n "${PS_ENDPOINT_TEMPLATE_DEV:-}" ]]; then
   ENV_VARS+=",PS_ENDPOINT_TEMPLATE_DEV=$PS_ENDPOINT_TEMPLATE_DEV"
