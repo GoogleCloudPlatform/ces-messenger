@@ -48,6 +48,15 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 PROJECT_ID_ENV = os.getenv("PROJECT_ID")
 WEBSOCKET_SERVER_PORT = int(os.getenv("WEBSOCKET_SERVER_PORT", "8765"))
 
+# Authorized origins for WebSocket connections (semicolon-separated).
+# Example: "https://www.google.com;https://staging.google.com.fr;https://beta.google.com"
+AUTHORIZED_ORIGINS_ENV = os.getenv("AUTHORIZED_ORIGINS", "")
+AUTHORIZED_ORIGINS = [
+    o.strip().rstrip("/") for o in AUTHORIZED_ORIGINS_ENV.split(";") if o.strip()
+]
+# Allow localhost origins only when explicitly enabled (for local development).
+ALLOW_LOCALHOST = os.getenv("ALLOW_LOCALHOST", "false").lower() in ("true", "1", "yes")
+
 PBL_ENDPOINT_TEMPLATE = "wss://{location}-dialogflow-webchannel.googleapis.com/ws/google.cloud.dialogflow.v3alpha1.Sessions/BidiStreamingDetectIntent"
 PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionService/BidiRunSession/locations/{location}"
 
@@ -65,6 +74,33 @@ except (ValueError, TypeError):
     TOKEN_TTL = 300
 
 
+def is_origin_allowed(origin):
+    """
+    Checks whether the given Origin header value is in the allow-list.
+
+    Returns True if:
+      - AUTHORIZED_ORIGINS is empty (not configured — permissive fallback, logged as warning at startup).
+      - The origin matches one of the configured AUTHORIZED_ORIGINS exactly.
+      - ALLOW_LOCALHOST is enabled and the origin is http://localhost[:port].
+    """
+    if not AUTHORIZED_ORIGINS:
+        # No allow-list configured — accept all (backward-compatible).
+        return True
+
+    if origin is None:
+        return False
+
+    normalized = origin.strip().rstrip("/")
+
+    if normalized in AUTHORIZED_ORIGINS:
+        return True
+
+    if ALLOW_LOCALHOST and re.match(r"^https?://localhost(:\d+)?$", normalized):
+        return True
+
+    return False
+
+
 async def handle_client(client_websocket):
     """
     Handles a client connection, acting as a proxy to the remote WebSocket.
@@ -74,6 +110,15 @@ async def handle_client(client_websocket):
     project_id = PROJECT_ID_ENV
 
     logging.info(f"Client connected from: {client_websocket.remote_address}")
+
+    # --- Origin verification ---
+    origin = client_websocket.request.headers.get("Origin")
+    if not is_origin_allowed(origin):
+        logging.warning(
+            f"Rejected WebSocket connection from unauthorized origin: {origin}"
+        )
+        await client_websocket.close(code=4003, reason="Origin not allowed")
+        return
 
     try:
 
@@ -401,6 +446,17 @@ async def main():
             level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
         )
         logging.info("Standard logging initialized for local environment.")
+
+    # --- Origin allow-list startup diagnostics ---
+    if AUTHORIZED_ORIGINS:
+        logging.info(f"Origin allow-list active. Authorized origins: {AUTHORIZED_ORIGINS}")
+        if ALLOW_LOCALHOST:
+            logging.info("Localhost origins are also allowed (ALLOW_LOCALHOST=true).")
+    else:
+        logging.warning(
+            "AUTHORIZED_ORIGINS is not set. All origins will be accepted. "
+            "Set AUTHORIZED_ORIGINS to restrict access (semicolon-separated list)."
+        )
 
     start_server = websockets.serve(handle_client, "0.0.0.0", WEBSOCKET_SERVER_PORT)
 
