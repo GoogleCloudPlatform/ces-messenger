@@ -14,7 +14,7 @@
     "precompile": "node script/precompile-templates.js"
   },
   "dependencies": {
-    "handlebars": "^4.7.7",
+    "handlebars": "^4.7.9",
     "eventemitter3": "^5.0.1",
     "marked": "^16.1.1",
     "random-id": "^1.0.4",
