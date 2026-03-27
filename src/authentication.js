@@ -39,7 +39,6 @@ async function authenticate(env, agentId, sessionId) {
 
   // If we have a token broker configured, go get the token from there
   if (agentConfig.tokenBrokerUrl) {
-    console.log(env, agentId, sessionId);
     return await refreshToken(env, agentId, sessionId);
     // Clean up local storage and give up. Authentication will need to be done via OAuth
   } else {

@@ -1044,6 +1044,15 @@ onMounted(async () => {
     }
   }
 
+  // Wait for the ces-messenger component to load
+  const cesMessenger = document.querySelector('ces-messenger');
+  let attempts = 0;
+  while (!('setSessionId' in cesMessenger) && attempts < 10) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    attempts++;
+  }
+  window.dispatchEvent(new CustomEvent('ces-messenger-loaded'));
+
   if (chatUiStatus.value === 'expanded') {
     // Scroll to bottom if we are already expanded (e.g. from session restore)
     nextTick(() => {
@@ -1051,6 +1060,11 @@ onMounted(async () => {
         messageBox.value.scrollTop = messageBox.value.scrollHeight;
       }
     });
+
+    // Add an extra 50ms wait to give time for custom code to be executed before
+    // the connection is established
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     if (await authenticate(agentEnv.value, bidiAdaptor.appString, bidiAdaptor.sessionId)) {
       if (isResumedSession.value && agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
         needsUserInteractionToResume.value = true;
@@ -1061,11 +1075,6 @@ onMounted(async () => {
       startConversation();
     }
   }
-
-  // TODO: find a better way to ensure fuctions are exposed
-  setTimeout(() => {
-    window.dispatchEvent(new CustomEvent('ces-messenger-loaded'));
-  }, 100);
 });
 onUnmounted(() => {
   window.removeEventListener('beforeunload', saveStateToSession);
@@ -1172,6 +1181,10 @@ function flushToolResponses() {
     }
   }
   toolMessageHold = false;
+}
+
+async function setSessionId(sessionId) {
+  bidiAdaptor.sessionId = sessionId;
 }
 
 // --------------------- Message templates ---------------------
@@ -1621,6 +1634,7 @@ defineExpose({
   sessionInput,
   setAccessToken,
   setQueryParameters,
+  setSessionId,
   signOut
 });
 
