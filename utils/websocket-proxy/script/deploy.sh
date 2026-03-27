@@ -84,7 +84,7 @@ ENV_VARS="WEBSOCKET_SERVER_PORT=8080,OAUTH_SCOPES=$OAUTH_SCOPES"
 
 # Add authorized origins for WebSocket origin verification.
 # Expected format: semicolon-separated list of origins.
-# Example: AUTHORIZED_ORIGINS="https://www.google.com;https://staging.google.com;https://beta.google.com"
+# Example: AUTHORIZED_ORIGINS="https://www.google.com;https://staging.google.com;https://beta.google.com" 
 if [[ -n "${AUTHORIZED_ORIGINS:-}" ]]; then
   ENV_VARS+=",AUTHORIZED_ORIGINS=$AUTHORIZED_ORIGINS"
 fi
