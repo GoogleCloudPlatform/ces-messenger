@@ -20,7 +20,7 @@ SOURCE_DIR="${SCRIPT_DIR}/../src"
 
 SERVICE_NAME="ces-websocket-proxy"
 LOCATION="${REGION:-us-central1}"
-TIMEOUT="60s"
+TIMEOUT="${TIMEOUT:-60s}"
 WEBSOCKET_PROXY_SA_NAME="ces-websocket-proxy"
 OAUTH_SCOPES="https://www.googleapis.com/auth/cloud-platform"
 
