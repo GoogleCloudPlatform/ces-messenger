@@ -63,6 +63,8 @@ PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionS
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 
+_SENSITIVE_KEYS = {"diagnosticInfo", "rootSpan"}
+
 # We'll keep updated tokens only for a few minutes.
 TOKEN_TTL = os.environ.get("TOKEN_TTL", "300")
 try:
@@ -99,6 +101,56 @@ def is_origin_allowed(origin):
         return True
 
     return False
+
+
+def _strip_keys_recursive(obj):
+    """Recursively remove sensitive keys from a JSON-like structure.
+
+    Walks dicts and lists in-place, deleting any key present in
+    ``_SENSITIVE_KEYS``.
+
+    Returns:
+        True if at least one key was removed anywhere in the tree.
+    """
+    modified = False
+    if isinstance(obj, dict):
+        for key in _SENSITIVE_KEYS & obj.keys():
+            del obj[key]
+            modified = True
+        for value in obj.values():
+            if _strip_keys_recursive(value):
+                modified = True
+    elif isinstance(obj, list):
+        for item in obj:
+            if _strip_keys_recursive(item):
+                modified = True
+    return modified
+
+
+def _strip_diagnostic_info(message):
+    """Remove sensitive fields from an upstream JSON message.
+
+    Args:
+        message: The raw WebSocket message (str or bytes).
+
+    Returns:
+        The sanitized message as a string, or the original message unchanged.
+    """
+    if not isinstance(message, str):
+        return message
+
+    try:
+        data = json.loads(message)
+    except (json.JSONDecodeError, ValueError):
+        return message
+
+    if not isinstance(data, dict):
+        return message
+
+    if not _strip_keys_recursive(data):
+        return message
+
+    return json.dumps(data)
 
 
 async def handle_client(client_websocket):
@@ -295,7 +347,8 @@ async def handle_client(client_websocket):
         async def process_messages_from_remote():
             try:
                 async for message in remote_websocket:
-                    if not await send_msg_to_client(message):
+                    sanitized = _strip_diagnostic_info(message)
+                    if not await send_msg_to_client(sanitized):
                         logging.warning("send_msg_to_client failed. Breaking loop.")
                         break
             except (ConnectionClosedOK, ConnectionClosedError) as e:
