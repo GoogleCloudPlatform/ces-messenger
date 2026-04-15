@@ -63,7 +63,10 @@ PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionS
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 
-_SENSITIVE_KEYS = {"diagnosticInfo", "rootSpan"}
+# Keys to strip from upstream JSON messages before forwarding to the client.
+# Example: STRIPPED_KEYS="diagnosticInfo;rootSpan"
+_STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS", "")
+_SENSITIVE_KEYS = {k.strip() for k in _STRIPPED_KEYS_ENV.split(";") if k.strip()}
 
 # We'll keep updated tokens only for a few minutes.
 TOKEN_TTL = os.environ.get("TOKEN_TTL", "300")
