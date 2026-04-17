@@ -65,8 +65,12 @@ CURRENT_TOKEN_TIMESTAMP = None
 
 # Keys to strip from upstream JSON messages before forwarding to the client.
 # Example: STRIPPED_KEYS="diagnosticInfo;rootSpan"
-_STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS", "")
-_SENSITIVE_KEYS = {k.strip() for k in _STRIPPED_KEYS_ENV.split(";") if k.strip()}
+_STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS")
+_SENSITIVE_KEYS = (
+    {k.strip() for k in _STRIPPED_KEYS_ENV.split(";") if k.strip()}
+    if _STRIPPED_KEYS_ENV is not None
+    else None
+)
 
 # We'll keep updated tokens only for a few minutes.
 TOKEN_TTL = os.environ.get("TOKEN_TTL", "300")
@@ -139,6 +143,9 @@ def _strip_diagnostic_info(message):
     Returns:
         The sanitized message as a string, or the original message unchanged.
     """
+    if _SENSITIVE_KEYS is None or not _SENSITIVE_KEYS:
+        return message
+
     if not isinstance(message, str):
         return message
 
@@ -350,7 +357,7 @@ async def handle_client(client_websocket):
         async def process_messages_from_remote():
             try:
                 async for message in remote_websocket:
-                    sanitized = _strip_diagnostic_info(message)
+                    sanitized = _strip_diagnostic_info(message) if _SENSITIVE_KEYS is not None else message
                     if not await send_msg_to_client(sanitized):
                         logging.warning("send_msg_to_client failed. Breaking loop.")
                         break
