@@ -30,6 +30,9 @@ If you have configured your web widget in text-only mode, you need a web based p
  -   `WEBSOCKET_SERVER_PORT`: The local port on which the proxy will listen. Defaults to `8765`.
  -   `TOKEN_TTL`: (Optional) The maximum time to keep using the latest access token. Defaults to 300 seconds (5 minutes).
  -   `OAUTH_SCOPES`: (Optional) The OAuth scopes to use in the access token generation request. Defaults to `https://www.googleapis.com/auth/cloud-platform`.
+ -   `AUTHORIZED_ORIGINS`: (Optional) Semicolon-separated list of allowed origins for WebSocket connections. If not set, all origins are accepted. Example: `https://www.example.com;https://staging.example.com`.
+ -   `ALLOW_LOCALHOST`: (Optional) Set to `true` to allow `http://localhost` origins in addition to `AUTHORIZED_ORIGINS`. Defaults to `false`.
+ -   `STRIPPED_KEYS`: (Optional) Semicolon-separated list of JSON key names to strip from upstream responses before forwarding them to the client. This prevents sensitive internal information (e.g. model name, execution traces, guardrail configuration) from being exposed to end-users. When not set, no filtering is applied. Recommended value: `diagnosticInfo;rootSpan`.
 
  ### Usage with CES Messenger
 
