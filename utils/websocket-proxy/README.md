@@ -32,7 +32,7 @@ If you have configured your web widget in text-only mode, you need a web based p
  -   `OAUTH_SCOPES`: (Optional) The OAuth scopes to use in the access token generation request. Defaults to `https://www.googleapis.com/auth/cloud-platform`.
  -   `AUTHORIZED_ORIGINS`: (Optional) Semicolon-separated list of allowed origins for WebSocket connections. If not set, all origins are accepted. Example: `https://www.example.com;https://staging.example.com`.
  -   `ALLOW_LOCALHOST`: (Optional) Set to `true` to allow `http://localhost` origins in addition to `AUTHORIZED_ORIGINS`. Defaults to `false`.
- -   `STRIPPED_KEYS`: (Optional) Semicolon-separated list of JSON key names to strip from upstream responses before forwarding them to the client. This prevents sensitive internal information (e.g. model name, execution traces, guardrail configuration) from being exposed to end-users. When not set, no filtering is applied. Recommended value: `diagnosticInfo;rootSpan`.
+ -   `STRIPPED_KEYS`: (Optional) Semicolon-separated list of field names to strip from `rootSpan` and `diagnosticInfo` objects in upstream responses. This removes sensitive internal data (e.g. model name, execution traces, guardrail blocklists) while preserving functional fields like `messages` that the front-end needs. When not set, no filtering is applied. Recommended value: `attributes;childSpans`.
 
  ### Usage with CES Messenger
 

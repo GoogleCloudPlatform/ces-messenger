@@ -63,10 +63,15 @@ PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionS
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 
-# Keys to strip from upstream JSON messages before forwarding to the client.
-# Example: STRIPPED_KEYS="diagnosticInfo;rootSpan"
+# ---------------------------------------------------------------------------
+# Security: filter sensitive diagnostic info from upstream responses
+# ---------------------------------------------------------------------------
+# When not set or empty, no filtering is applied (pass-through).
+# Recommended production value: STRIPPED_KEYS="attributes;childSpans"
+#
+# Example: STRIPPED_KEYS="attributes;childSpans;customField"
 _STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS")
-_SENSITIVE_KEYS = (
+_ROOTSPAN_SENSITIVE_FIELDS = (
     {k.strip() for k in _STRIPPED_KEYS_ENV.split(";") if k.strip()}
     if _STRIPPED_KEYS_ENV is not None
     else None
@@ -110,32 +115,34 @@ def is_origin_allowed(origin):
     return False
 
 
-def _strip_keys_recursive(obj):
-    """Recursively remove sensitive keys from a JSON-like structure.
+def _sanitize_rootspan(root_span):
+    """Remove sensitive fields from a rootSpan / diagnosticInfo object.
 
-    Walks dicts and lists in-place, deleting any key present in
-    ``_SENSITIVE_KEYS``.
+    Strips ``attributes`` (deployment IDs, version IDs) and
+    ``childSpans`` (model name, guardrail blocklists, debug metrics,
+    trawler IDs, tool responses) while keeping everything else
+    (name, startTime, endTime, duration, messages, etc.).
 
     Returns:
-        True if at least one key was removed anywhere in the tree.
+        True if at least one field was removed.
     """
-    modified = False
-    if isinstance(obj, dict):
-        for key in _SENSITIVE_KEYS & obj.keys():
-            del obj[key]
-            modified = True
-        for value in obj.values():
-            if _strip_keys_recursive(value):
-                modified = True
-    elif isinstance(obj, list):
-        for item in obj:
-            if _strip_keys_recursive(item):
-                modified = True
-    return modified
+    if not isinstance(root_span, dict):
+        return False
+    removed = _ROOTSPAN_SENSITIVE_FIELDS & root_span.keys()
+    for key in removed:
+        del root_span[key]
+    return bool(removed)
 
 
 def _strip_diagnostic_info(message):
-    """Remove sensitive fields from an upstream JSON message.
+    """Filter sensitive diagnostic data from an upstream JSON message.
+
+    Targets ``rootSpan`` and ``diagnosticInfo`` objects: removes their
+    internal tracing fields (attributes, childSpans) while preserving
+    functional data the front-end needs (e.g. ``messages``).
+
+    Handles both text (str) and binary (bytes) WebSocket frames.
+    Non-JSON frames (e.g. raw audio) are returned unchanged.
 
     Args:
         message: The raw WebSocket message (str or bytes).
@@ -143,7 +150,7 @@ def _strip_diagnostic_info(message):
     Returns:
         The sanitized message, or the original message unchanged.
     """
-    if _SENSITIVE_KEYS is None or not _SENSITIVE_KEYS:
+    if not _ROOTSPAN_SENSITIVE_FIELDS:
         return message
 
     is_bytes = isinstance(message, bytes)
@@ -161,11 +168,43 @@ def _strip_diagnostic_info(message):
     if not isinstance(data, dict):
         return message
 
-    if not _strip_keys_recursive(data):
+    modified = False
+
+    if "rootSpan" in data:
+        if _sanitize_rootspan(data["rootSpan"]):
+            modified = True
+
+    modified |= _sanitize_diagnostic_recursive(data)
+
+    if not modified:
         return message
 
     sanitized = json.dumps(data)
     return sanitized.encode("utf-8") if is_bytes else sanitized
+
+
+def _sanitize_diagnostic_recursive(obj):
+    """Walk a JSON structure and sanitize any ``diagnosticInfo`` objects found.
+
+    When a ``diagnosticInfo`` dict is found, its ``attributes`` and
+    ``childSpans`` are removed but ``messages`` and other fields are kept.
+
+    Returns:
+        True if any modification was made.
+    """
+    modified = False
+    if isinstance(obj, dict):
+        if "diagnosticInfo" in obj and isinstance(obj["diagnosticInfo"], dict):
+            if _sanitize_rootspan(obj["diagnosticInfo"]):
+                modified = True
+        for value in obj.values():
+            if _sanitize_diagnostic_recursive(value):
+                modified = True
+    elif isinstance(obj, list):
+        for item in obj:
+            if _sanitize_diagnostic_recursive(item):
+                modified = True
+    return modified
 
 
 async def handle_client(client_websocket):
@@ -362,7 +401,7 @@ async def handle_client(client_websocket):
         async def process_messages_from_remote():
             try:
                 async for message in remote_websocket:
-                    sanitized = _strip_diagnostic_info(message) if _SENSITIVE_KEYS is not None else message
+                    sanitized = _strip_diagnostic_info(message) if _ROOTSPAN_SENSITIVE_FIELDS else message
                     if not await send_msg_to_client(sanitized):
                         logging.warning("send_msg_to_client failed. Breaking loop.")
                         break
