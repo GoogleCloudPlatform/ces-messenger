@@ -141,16 +141,20 @@ def _strip_diagnostic_info(message):
         message: The raw WebSocket message (str or bytes).
 
     Returns:
-        The sanitized message as a string, or the original message unchanged.
+        The sanitized message, or the original message unchanged.
     """
     if _SENSITIVE_KEYS is None or not _SENSITIVE_KEYS:
         return message
 
-    if not isinstance(message, str):
+    is_bytes = isinstance(message, bytes)
+
+    try:
+        text = message.decode("utf-8") if is_bytes else message
+    except (UnicodeDecodeError, AttributeError):
         return message
 
     try:
-        data = json.loads(message)
+        data = json.loads(text)
     except (json.JSONDecodeError, ValueError):
         return message
 
@@ -160,7 +164,8 @@ def _strip_diagnostic_info(message):
     if not _strip_keys_recursive(data):
         return message
 
-    return json.dumps(data)
+    sanitized = json.dumps(data)
+    return sanitized.encode("utf-8") if is_bytes else sanitized
 
 
 async def handle_client(client_websocket):
