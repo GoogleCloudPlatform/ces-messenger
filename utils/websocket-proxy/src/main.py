@@ -63,14 +63,10 @@ PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionS
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 
-# ---------------------------------------------------------------------------
-# Security: filter sensitive fields from upstream responses
-# ---------------------------------------------------------------------------
+# Filter sensitive fields from upstream responses
 # When not set or empty, no filtering is applied (pass-through).
-#
 # Recommended production value:
 #   STRIPPED_KEYS="rootSpan.attributes;rootSpan.childSpans"
-#
 _STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS")
 _STRIPPED_PATHS = (
     [p.strip() for p in _STRIPPED_KEYS_ENV.split(";") if p.strip()]
