@@ -64,16 +64,17 @@ CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 
 # ---------------------------------------------------------------------------
-# Security: filter sensitive diagnostic info from upstream responses
+# Security: filter sensitive fields from upstream responses
 # ---------------------------------------------------------------------------
 # When not set or empty, no filtering is applied (pass-through).
-# Recommended production value: STRIPPED_KEYS="attributes;childSpans"
 #
-# Example: STRIPPED_KEYS="attributes;childSpans;customField"
+# Recommended production value:
+#   STRIPPED_KEYS="rootSpan.attributes;rootSpan.childSpans"
+#
 _STRIPPED_KEYS_ENV = os.getenv("STRIPPED_KEYS")
-_ROOTSPAN_SENSITIVE_FIELDS = (
-    {k.strip() for k in _STRIPPED_KEYS_ENV.split(";") if k.strip()}
-    if _STRIPPED_KEYS_ENV is not None
+_STRIPPED_PATHS = (
+    [p.strip() for p in _STRIPPED_KEYS_ENV.split(";") if p.strip()]
+    if _STRIPPED_KEYS_ENV is not None and _STRIPPED_KEYS_ENV.strip()
     else None
 )
 
@@ -115,31 +116,35 @@ def is_origin_allowed(origin):
     return False
 
 
-def _sanitize_rootspan(root_span):
-    """Remove sensitive fields from a rootSpan / diagnosticInfo object.
+def _delete_at_path(obj, path_parts):
+    """Delete a field at the given dot-path within a JSON object.
 
-    Strips ``attributes`` (deployment IDs, version IDs) and
-    ``childSpans`` (model name, guardrail blocklists, debug metrics,
-    trawler IDs, tool responses) while keeping everything else
-    (name, startTime, endTime, duration, messages, etc.).
+    Args:
+        obj: The parsed JSON object (dict).
+        path_parts: List of path segments, e.g. ["rootSpan", "attributes"].
 
     Returns:
-        True if at least one field was removed.
+        True if the field was found and deleted.
     """
-    if not isinstance(root_span, dict):
-        return False
-    removed = _ROOTSPAN_SENSITIVE_FIELDS & root_span.keys()
-    for key in removed:
-        del root_span[key]
-    return bool(removed)
+    current = obj
+    for part in path_parts[:-1]:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        else:
+            return False
+    leaf = path_parts[-1]
+    if isinstance(current, dict) and leaf in current:
+        del current[leaf]
+        return True
+    return False
 
 
 def _strip_diagnostic_info(message):
-    """Filter sensitive diagnostic data from an upstream JSON message.
+    """Remove fields specified by dot-path selectors from an upstream message.
 
-    Targets ``rootSpan`` and ``diagnosticInfo`` objects: removes their
-    internal tracing fields (attributes, childSpans) while preserving
-    functional data the front-end needs (e.g. ``messages``).
+    Each path in ``_STRIPPED_PATHS`` targets a specific location in the JSON
+    tree (e.g. ``rootSpan.attributes``). Only the leaf field is removed;
+    parent objects and sibling fields are preserved.
 
     Handles both text (str) and binary (bytes) WebSocket frames.
     Non-JSON frames (e.g. raw audio) are returned unchanged.
@@ -150,7 +155,7 @@ def _strip_diagnostic_info(message):
     Returns:
         The sanitized message, or the original message unchanged.
     """
-    if not _ROOTSPAN_SENSITIVE_FIELDS:
+    if not _STRIPPED_PATHS:
         return message
 
     is_bytes = isinstance(message, bytes)
@@ -169,42 +174,16 @@ def _strip_diagnostic_info(message):
         return message
 
     modified = False
-
-    if "rootSpan" in data:
-        if _sanitize_rootspan(data["rootSpan"]):
+    for path in _STRIPPED_PATHS:
+        parts = path.split(".")
+        if _delete_at_path(data, parts):
             modified = True
-
-    modified |= _sanitize_diagnostic_recursive(data)
 
     if not modified:
         return message
 
     sanitized = json.dumps(data)
     return sanitized.encode("utf-8") if is_bytes else sanitized
-
-
-def _sanitize_diagnostic_recursive(obj):
-    """Walk a JSON structure and sanitize any ``diagnosticInfo`` objects found.
-
-    When a ``diagnosticInfo`` dict is found, its ``attributes`` and
-    ``childSpans`` are removed but ``messages`` and other fields are kept.
-
-    Returns:
-        True if any modification was made.
-    """
-    modified = False
-    if isinstance(obj, dict):
-        if "diagnosticInfo" in obj and isinstance(obj["diagnosticInfo"], dict):
-            if _sanitize_rootspan(obj["diagnosticInfo"]):
-                modified = True
-        for value in obj.values():
-            if _sanitize_diagnostic_recursive(value):
-                modified = True
-    elif isinstance(obj, list):
-        for item in obj:
-            if _sanitize_diagnostic_recursive(item):
-                modified = True
-    return modified
 
 
 async def handle_client(client_websocket):
@@ -401,7 +380,7 @@ async def handle_client(client_websocket):
         async def process_messages_from_remote():
             try:
                 async for message in remote_websocket:
-                    sanitized = _strip_diagnostic_info(message) if _ROOTSPAN_SENSITIVE_FIELDS else message
+                    sanitized = _strip_diagnostic_info(message) if _STRIPPED_PATHS else message
                     if not await send_msg_to_client(sanitized):
                         logging.warning("send_msg_to_client failed. Breaking loop.")
                         break
