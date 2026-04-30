@@ -1116,7 +1116,7 @@ function reconnect() {
       reconnectButtonText == agentConfig.textStartConversation)) {
     Logger.log('Clearing local storage before next connection attempt.');
     if (bidiAdaptor) bidiAdaptor.endSession();
-    clearStorage({ clearAuthentication: true });
+    clearStorage({ clearAuthentication: !agentConfig.oauthClientId });
     messages.value = [];
   }
 
