@@ -1523,7 +1523,7 @@ function getWebStreamEventListeners() {
               console.debug(message);
               disconnectReason.value = message.disconnectReason;
               // Tokens provided by the managed token broker cannot be reused across sessions
-              if (message.disconnectReason == 'AGENT_REQUESTED' && agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
+              if (message.disconnectReason == 'AGENT_REQUESTED' && agentConfig.tokenBrokerUrl != undefined && agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
                 signOut();
               }
               if (message.endSession) {

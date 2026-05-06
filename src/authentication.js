@@ -56,7 +56,7 @@ async function refreshToken(env, agentId, sessionId) {
     let tokenKey = 'access_token';
     let expiryKey = 'expiry';
 
-    if (agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
+    if (agentConfig.tokenBrokerUrl != undefined && agentConfig.tokenBrokerUrl.toUpperCase() == 'MANAGED') {
       tokenKey = 'chatToken';
       expiryKey = 'expireTime';
 
@@ -81,7 +81,7 @@ async function refreshToken(env, agentId, sessionId) {
       accessTokenExpiresAt.value = typeof data[expiryKey] === 'number' && !isNaN(data[expiryKey]) ? data[expiryKey] : (new Date(data[expiryKey])).getTime();
 
       // Tokens received from the managed token broker cannot be reused across sessions.
-      if (agentConfig.tokenBrokerUrl.toUpperCase() != 'MANAGED') {
+      if (agentConfig.tokenBrokerUrl != undefined && agentConfig.tokenBrokerUrl.toUpperCase() != 'MANAGED') {
         localStorage.accessToken = accessToken.value;
         localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
       }
