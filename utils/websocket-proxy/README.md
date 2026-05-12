@@ -17,7 +17,8 @@ If you have configured your web widget in text-only mode, you need a web based p
      - If not, it generates an access token, using the service account from the Cloud Run service running the proxy. This service account needs to have the Customer Engagement Suite Client role (`roles/ces.client`) on the project where the agent is deployed.
  4.  **Determines upstream endpoint**: It parses the `session` string from the configuration to determine the correct Google Cloud websocket endpoint.
  5.  **Proxies messages**: It transparently forwards messages between the client and the Google backend in both directions.
- 6.  **Handles disconnections**: It manages the lifecycle of both client and remote connections.
+ 6.  **Rate limiting**: It enforces per-client-IP limits on concurrent sessions and connection rate to protect against abuse.
+ 7.  **Handles disconnections**: It manages the lifecycle of both client and remote connections.
 
  ## Configuration
 
@@ -33,6 +34,9 @@ If you have configured your web widget in text-only mode, you need a web based p
  -   `AUTHORIZED_ORIGINS`: (Optional) Semicolon-separated list of allowed origins for WebSocket connections. If not set, all origins are accepted. Example: `https://www.example.com;https://staging.example.com`.
  -   `ALLOW_LOCALHOST`: (Optional) Set to `true` to allow `http://localhost` origins in addition to `AUTHORIZED_ORIGINS`. Defaults to `false`.
  -   `STRIPPED_KEYS`: (Optional) Semicolon-separated list of dot-path selectors targeting fields to remove from upstream JSON responses. Each selector is a dot-separated path from the root of the message (e.g. `rootSpan.attributes` removes only the `attributes` key inside `rootSpan`, without affecting an `attributes` key elsewhere). When not set, no filtering is applied. Recommended value: `rootSpan.attributes;rootSpan.childSpans`.
+ -   `MAX_SESSIONS_PER_CLIENT`: (Optional) Maximum number of concurrent WebSocket sessions allowed per client IP address. Defaults to `10`. Set to `0` to disable.
+ -   `SESSION_RATE_LIMIT`: (Optional) Maximum number of new WebSocket connections allowed per client IP within the rate window. Defaults to `30`. Set to `0` to disable.
+ -   `SESSION_RATE_WINDOW`: (Optional) Duration of the sliding rate-limit window in seconds. Defaults to `60`.
 
  ### Usage with CES Messenger
 

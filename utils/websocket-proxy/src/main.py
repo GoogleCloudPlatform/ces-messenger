@@ -27,9 +27,13 @@ Configuration is managed through environment variables:
 - `WEBSOCKET_SERVER_PORT`: The local port for the proxy to listen on. Defaults to 8765.
 - `TOKEN_TTL`: The time-to-live for the cached token in seconds. Defaults to 300.
 - `OAUTH_SCOPES`: Comma-separated list of OAuth scopes for the token. Defaults to 'https://www.googleapis.com/auth/cloud-platform'.
+- `MAX_SESSIONS_PER_CLIENT`: Maximum concurrent WebSocket sessions per client IP. Defaults to 10. Set to 0 to disable.
+- `SESSION_RATE_LIMIT`: Maximum new connections per client IP within the rate window. Defaults to 30. Set to 0 to disable.
+- `SESSION_RATE_WINDOW`: Duration of the sliding rate-limit window in seconds. Defaults to 60.
 """
 
 import asyncio
+import collections
 import json
 import logging
 import os
@@ -45,8 +49,22 @@ from google.auth.transport import requests
 from websockets.client import connect
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
+def _getenv_int(name, default):
+    """Read an environment variable as int, falling back to *default*."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        logging.warning(
+            f"Invalid value for {name}: '{raw}'. Expected an integer, using default {default}."
+        )
+        return default
+
+
 PROJECT_ID_ENV = os.getenv("PROJECT_ID")
-WEBSOCKET_SERVER_PORT = int(os.getenv("WEBSOCKET_SERVER_PORT", "8765"))
+WEBSOCKET_SERVER_PORT = _getenv_int("WEBSOCKET_SERVER_PORT", 8765)
 
 # Authorized origins for WebSocket connections (semicolon-separated).
 # Example: "https://www.google.com;https://staging.google.com.fr;https://beta.google.com"
@@ -75,14 +93,21 @@ _STRIPPED_PATHS = (
 )
 
 # We'll keep updated tokens only for a few minutes.
-TOKEN_TTL = os.environ.get("TOKEN_TTL", "300")
-try:
-    TOKEN_TTL = int(TOKEN_TTL)
-except (ValueError, TypeError):
-    logging.warning(
-        f"Invalid value for TOKEN_TTL: '{TOKEN_TTL}'. It must be an integer."
-    )
-    TOKEN_TTL = 300
+TOKEN_TTL = _getenv_int("TOKEN_TTL", 300)
+
+# --- Rate limiting / session volume control per client IP ---
+# Maximum concurrent WebSocket sessions per client IP.  0 = unlimited.
+MAX_SESSIONS_PER_CLIENT = _getenv_int("MAX_SESSIONS_PER_CLIENT", 10)
+# Maximum new connection attempts per client IP within the rate window.  0 = unlimited.
+SESSION_RATE_LIMIT = _getenv_int("SESSION_RATE_LIMIT", 30)
+# Rate window duration in seconds.
+SESSION_RATE_WINDOW = _getenv_int("SESSION_RATE_WINDOW", 60)
+
+# In-memory tracking structures (safe without locking in single-threaded asyncio).
+_active_sessions: dict[str, int] = collections.defaultdict(int)
+_connection_timestamps: dict[str, collections.deque] = collections.defaultdict(
+    collections.deque
+)
 
 
 def is_origin_allowed(origin):
@@ -110,6 +135,65 @@ def is_origin_allowed(origin):
         return True
 
     return False
+
+
+def _get_client_ip(websocket):
+    """Extract the client IP from a WebSocket connection.
+
+    Checks the X-Forwarded-For header first (set by load balancers such as
+    Cloud Run), then falls back to the direct connection address.
+    """
+    forwarded_for = websocket.request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # X-Forwarded-For: client, proxy1, proxy2 — take the leftmost (client) IP.
+        return forwarded_for.split(",")[0].strip()
+    if websocket.remote_address:
+        return websocket.remote_address[0]
+    return "unknown"
+
+
+def _check_rate_limit(client_ip):
+    """Return (allowed, log_reason) for a new connection from *client_ip*.
+
+    *log_reason* is an internal diagnostic string for server-side logging only;
+    it MUST NOT be sent to the client.
+    """
+    # 1. Concurrent session cap
+    if MAX_SESSIONS_PER_CLIENT and _active_sessions[client_ip] >= MAX_SESSIONS_PER_CLIENT:
+        return False, "concurrent_session_limit"
+
+    # 2. Sliding-window connection rate
+    if SESSION_RATE_LIMIT:
+        now = time.time()
+        timestamps = _connection_timestamps[client_ip]
+        window_start = now - SESSION_RATE_WINDOW
+        while timestamps and timestamps[0] < window_start:
+            timestamps.popleft()
+        if len(timestamps) >= SESSION_RATE_LIMIT:
+            return False, "connection_rate_limit"
+
+    return True, None
+
+
+def _register_session(client_ip):
+    """Record a new active session for *client_ip*."""
+    _active_sessions[client_ip] += 1
+    _connection_timestamps[client_ip].append(time.time())
+
+
+def _unregister_session(client_ip):
+    """Remove an active session for *client_ip* and clean up if empty."""
+    _active_sessions[client_ip] = max(0, _active_sessions[client_ip] - 1)
+    if _active_sessions[client_ip] == 0:
+        _active_sessions.pop(client_ip, None)
+        # Purge expired timestamps; remove the deque entirely if empty.
+        timestamps = _connection_timestamps.get(client_ip)
+        if timestamps is not None:
+            cutoff = time.time() - SESSION_RATE_WINDOW
+            while timestamps and timestamps[0] < cutoff:
+                timestamps.popleft()
+            if not timestamps:
+                _connection_timestamps.pop(client_ip, None)
 
 
 def _delete_at_path(obj, path_parts):
@@ -189,8 +273,10 @@ async def handle_client(client_websocket):
     access_token = None
     remote_websocket = None
     project_id = PROJECT_ID_ENV
+    client_ip = _get_client_ip(client_websocket)
+    session_registered = False
 
-    logging.info(f"Client connected from: {client_websocket.remote_address}")
+    logging.info(f"Client connected from: {client_ip}")
 
     # --- Origin verification ---
     origin = client_websocket.request.headers.get("Origin")
@@ -200,6 +286,16 @@ async def handle_client(client_websocket):
         )
         await client_websocket.close(code=4003, reason="Origin not allowed")
         return
+
+    # --- Rate limiting ---
+    allowed, log_reason = _check_rate_limit(client_ip)
+    if not allowed:
+        logging.warning(f"Rate limit hit for {client_ip}: {log_reason}")
+        await client_websocket.close(code=4008, reason="Rate limit exceeded")
+        return
+
+    _register_session(client_ip)
+    session_registered = True
 
     try:
 
@@ -435,8 +531,10 @@ async def handle_client(client_websocket):
     except Exception as e:
         logging.error(f"An error occurred in handle_client: {e}")
     finally:
+        if session_registered:
+            _unregister_session(client_ip)
         logging.info(
-            f"Client disconnected from: {client_websocket.remote_address} (handle_client finally)"
+            f"Client disconnected from: {client_ip} (handle_client finally)"
         )
         if remote_websocket and remote_websocket.close_code is None:
             try:
@@ -539,6 +637,19 @@ async def main():
             "AUTHORIZED_ORIGINS is not set. All origins will be accepted. "
             "Set AUTHORIZED_ORIGINS to restrict access (semicolon-separated list)."
         )
+
+    # --- Rate limiting startup diagnostics ---
+    if MAX_SESSIONS_PER_CLIENT:
+        logging.info(f"Max concurrent sessions per client IP: {MAX_SESSIONS_PER_CLIENT}")
+    else:
+        logging.warning("MAX_SESSIONS_PER_CLIENT=0 — no concurrent session limit.")
+    if SESSION_RATE_LIMIT:
+        logging.info(
+            f"Connection rate limit: {SESSION_RATE_LIMIT} new sessions "
+            f"per {SESSION_RATE_WINDOW}s window per client IP."
+        )
+    else:
+        logging.warning("SESSION_RATE_LIMIT=0 — no connection rate limit.")
 
     start_server = websockets.serve(handle_client, "0.0.0.0", WEBSOCKET_SERVER_PORT)
 
