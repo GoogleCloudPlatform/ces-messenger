@@ -33,6 +33,22 @@ export class AudioRecorder extends EventEmitter {
     this.isMuted = false;
   }
 
+  /**
+   * Pre-requests microphone permission and stores the stream.
+   * Call this before opening a WebSocket to avoid Safari suspending the
+   * connection while the permission dialog is shown.
+   * @returns {Promise<MediaStream>} The obtained media stream.
+   */
+  async requestPermission() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Could not request user media');
+    }
+    if (!this.stream) {
+      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    return this.stream;
+  }
+
   async start() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Could not request user media');
@@ -42,7 +58,10 @@ export class AudioRecorder extends EventEmitter {
     this.starting = new Promise((resolve, reject) => {
       (async () => {
         try {
-          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Reuse stream from requestPermission() if already obtained
+          if (!this.stream) {
+            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
           this.audioContext = await audioContext({ sampleRate: this.sampleRate });
           this.source = this.audioContext.createMediaStreamSource(this.stream);
 

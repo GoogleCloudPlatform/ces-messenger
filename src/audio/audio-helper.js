@@ -101,6 +101,17 @@ export class AudioHelper {
     this.talking.value = talkingMode;
   }
 
+  /**
+   * Pre-requests microphone permission before opening a connection.
+   * On Safari, the permission dialog suspends active WebSocket connections,
+   * so this must be called before connectWebStream().
+   */
+  async requestMicPermission() {
+    if (this.agentConfig.audioInputMode !== 'NONE' && this.audioRecorder) {
+      await this.audioRecorder.requestPermission();
+    }
+  }
+
   async startRecording(onDataCallback) {
     if (this.agentConfig.audioInputMode !== 'NONE') {
       if (this.audioContext.state === 'suspended') {

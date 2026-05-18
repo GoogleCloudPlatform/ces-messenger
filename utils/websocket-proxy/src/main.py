@@ -44,6 +44,7 @@ from google.api_core import exceptions
 from google.auth.transport import requests
 from websockets.client import connect
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
+from websockets.http11 import Response
 
 PROJECT_ID_ENV = os.getenv("PROJECT_ID")
 WEBSOCKET_SERVER_PORT = int(os.getenv("WEBSOCKET_SERVER_PORT", "8765"))
@@ -182,6 +183,33 @@ def _strip_diagnostic_info(message):
     return sanitized.encode("utf-8") if is_bytes else sanitized
 
 
+class _ProbeErrorFilter(logging.Filter):
+    """Suppress noisy 'opening handshake failed' errors caused by TCP health probes."""
+
+    _SUPPRESSED_FRAGMENTS = (
+        "connection closed while reading HTTP request line",
+        "did not receive a valid HTTP request",
+    )
+
+    def filter(self, record):
+        msg = record.getMessage()
+        return not any(frag in msg for frag in self._SUPPRESSED_FRAGMENTS)
+
+
+async def process_request(connection, request):
+    """Respond to HTTP health-check probes without attempting a WebSocket upgrade.
+
+    Cloud Run and the Load Balancer send periodic HTTP GET requests to verify
+    the container is alive. Since websockets.serve() only speaks WebSocket,
+    these probes would otherwise fail with a handshake error.
+    """
+    if request.path == "/healthz":
+        return Response(200, "OK", websockets.datastructures.Headers())
+    # For any other non-upgrade HTTP request (e.g. GCP health checker user-agent),
+    # let the default WebSocket handshake proceed normally.
+    return None
+
+
 async def handle_client(client_websocket):
     """
     Handles a client connection, acting as a proxy to the remote WebSocket.
@@ -303,7 +331,12 @@ async def handle_client(client_websocket):
                         f"Connecting to remote WebSocket {remote_websocket_url}"
                     )
                     remote_websocket = await connect(
-                        remote_websocket_url, max_size=2**22, extra_headers=headers
+                        remote_websocket_url,
+                        max_size=2**22,
+                        extra_headers=headers,
+                        open_timeout=30,
+                        ping_interval=20,
+                        ping_timeout=20,
                     )
                     logging.debug("Connected to remote WebSocket.")
                 except Exception as e:
@@ -329,6 +362,11 @@ async def handle_client(client_websocket):
         except json.JSONDecodeError:
             logging.error("Invalid JSON in first message. Closing connection.")
             await client_websocket.close(code=1002, reason="Invalid JSON")
+            return
+        except (ConnectionClosedOK, ConnectionClosedError) as e:
+            logging.info(
+                f"Client disconnected before completing setup: {e}"
+            )
             return
         except Exception as e:
             logging.error(f"Error processing first message {e}")
@@ -540,7 +578,20 @@ async def main():
             "Set AUTHORIZED_ORIGINS to restrict access (semicolon-separated list)."
         )
 
-    start_server = websockets.serve(handle_client, "0.0.0.0", WEBSOCKET_SERVER_PORT)
+    # Suppress noisy error logs from TCP health probes (0-byte connections)
+    logging.getLogger("websockets.server").addFilter(_ProbeErrorFilter())
+
+    start_server = websockets.serve(
+        handle_client,
+        "0.0.0.0",
+        WEBSOCKET_SERVER_PORT,
+        process_request=process_request,
+        # Keep connections alive — prevents LB/Cloud Run from killing idle sessions.
+        ping_interval=20,
+        ping_timeout=20,
+        # Allow large payloads (audio frames)
+        max_size=2**22,
+    )
 
     logging.info(f"WebSocket server started on port {WEBSOCKET_SERVER_PORT}")
 

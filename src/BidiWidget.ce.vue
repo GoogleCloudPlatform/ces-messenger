@@ -890,6 +890,16 @@ const startConversation = async () => {
   }
 
   try {
+    // Request microphone permission BEFORE opening the WebSocket connection.
+    // On Safari, the permission dialog suspends active network connections,
+    // which would kill the WebSocket if it were already open.
+    // If permission is denied, we still connect for text-only chat.
+    try {
+      await audioHelper.requestMicPermission();
+    } catch (micError) {
+      Logger.warn('Microphone permission not available, continuing without audio:', micError);
+    }
+
     connectWebStream();
     audioHelper.startRecording((base64Data) => {
       if (bidiStream != null && bidiStream.isConnected()) {
