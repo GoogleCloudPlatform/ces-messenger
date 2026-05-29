@@ -101,7 +101,8 @@
               'last': message === messages[messages.length - 1],
               'last-rich-content': index === lastRichContentMessageIndex,
               'is-displayed-in-call': index === lastBotMessageIndex
-            }">
+            }"
+          >
             <span v-if="message.text && !message.html">{{ message.text }}</span>
             <span
               v-if="message.html"
@@ -109,8 +110,8 @@
             />
             <span
               v-if="message.payload?.html"
-              v-html="message.payload.html"
               @click="handleMessageClick($event, message, index)"
+              v-html="message.payload.html"
             />
           </li>
           <li
@@ -410,13 +411,13 @@ const audioHelper = new AudioHelper(
   agentConfig,
   bidiAdaptor,
   () => { // onComplete callback
-      isAudioPlaying.value = false;
-      // A session disconnect was requested
-      if (disconnectReason.value) {
-        pauseConversation();
-        disconnectWebStream(disconnectReason.value);
-      }
+    isAudioPlaying.value = false;
+    // A session disconnect was requested
+    if (disconnectReason.value) {
+      pauseConversation();
+      disconnectWebStream(disconnectReason.value);
     }
+  }
 );
 
 // Audio Helper reactive properties
@@ -818,7 +819,7 @@ async function sessionInput(input) {
       image: 'ces-image-sent',
       payload: 'ces-payload-sent',
       toolResponses: 'ces-tool-response-sent'
-   }
+    };
     for (const input of inputs) {
       if (!input) continue;
       for (const [key, value] of Object.entries(inputMapping)) {
@@ -884,7 +885,7 @@ const startConversation = async () => {
         image: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
         text: agentConfig.textSignInWithGoogle,
         onclick: `window.kite.googleOauthSignIn('${getNextMessageId()}')`
-      }
+      };
       insertRichMessage('cesm_button', context);
       return;
     }
@@ -903,7 +904,7 @@ const startConversation = async () => {
         sendQueryParams();
         sessionInput(message);
       }
-    })
+    });
   } catch (error) {
     Logger.error('Error starting recording:', error);
   }
@@ -1201,7 +1202,7 @@ const richMessageHandlers = [
     event: 'click',
     handler: listTemplateHandler
   }
-]
+];
 
 function registerRichMessageHandler(templateId, handler, contentType=undefined, eventName='click') {
   const index = richMessageHandlers.findIndex(h =>
@@ -1275,7 +1276,7 @@ function buttonTemplateHandler(message, clickedElement) {
     if (!context.mute) insertMessage('BOT', { text: sendMessage });
     if (sendMessage) sessionInput(sendMessage);
   }
-  return { action: 'delete'}
+  return { action: 'delete'};
 }
 
 function listTemplateHandler(message, clickedElement) {
@@ -1292,7 +1293,7 @@ function listTemplateHandler(message, clickedElement) {
       sessionInput(messageToSend);
     }
   }
-  return { action: 'delete'}
+  return { action: 'delete'};
 }
 
 // --------------------- Bidi Webstream ---------------------
@@ -1368,7 +1369,7 @@ function getWebStreamEventListeners() {
           TRANSCRIPT: 'ces-transcript-received',
           PAYLOAD: 'ces-payload-received',
           TOOL_CALL: 'ces-tool-call-received'
-      }        
+        };        
 
         // Start by handling websockets disconnect messages that are independent from the API
         if (inMessage.connection_closed) {
@@ -1478,9 +1479,9 @@ function getWebStreamEventListeners() {
               const toolResponse = message.toolCall;
               toolResponse.response = {status: 'success'};
               if (!insertRichMessage(message.toolCall.args.template_id,
-                                         message.toolCall.args.context,
-                                         message.toolCall.args.content_type,
-                                         message.toolCall.args.render_options)) {
+                message.toolCall.args.context,
+                message.toolCall.args.content_type,
+                message.toolCall.args.render_options)) {
                 toolResponse.response.status = 'error';
               }
               delete toolResponse.args;
@@ -1579,12 +1580,14 @@ function connectWebStream() {
     Logger.log(`Initializing WebStream with agentId: ${bidiAdaptor.appString}`);
     if (agentConfig.audioInputMode == 'NONE') {
       bidiStream = new HttpRequestResponseStream(agentEnv.value, bidiAdaptor.appString, getWebStreamEventListeners, bidiAdaptor.sessionId, agentConfig.apiUri || null);
-    } else
-      if (!websocketUri) {
+    } else {
+      const activeWebsocketUri = websocketUri || audioHelper.websocketUri;
+      if (!activeWebsocketUri) {
         bidiStream = new WebchannelBidiStream(agentEnv.value, bidiAdaptor.appString, getWebStreamEventListeners);
       } else {
-        bidiStream = new WebsocketBidiStream(websocketUri, bidiAdaptor.appString, getWebStreamEventListeners);
+        bidiStream = new WebsocketBidiStream(activeWebsocketUri, bidiAdaptor.appString, getWebStreamEventListeners);
       }
+    }
   } catch (e) {
     Logger.error('Failed to initialize WebStream:', e);
     bidiStream = null;

@@ -21,11 +21,11 @@ function arrayBufferToBase64(buffer) {
 }
 
 export class AudioRecorder extends EventEmitter {
-  constructor() {
+  constructor(sharedAudioContext = null) {
     super();
     this.sampleRate = 16000;
     this.stream = undefined;
-    this.audioContext = undefined;
+    this.audioContext = sharedAudioContext;
     this.source = undefined;
     this.recording = false;
     this.recordingWorklet = undefined;
@@ -42,8 +42,18 @@ export class AudioRecorder extends EventEmitter {
     this.starting = new Promise((resolve, reject) => {
       (async () => {
         try {
-          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            }
+          });
+          if (!this.audioContext) {
+            this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+          } else if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+          }
           this.source = this.audioContext.createMediaStreamSource(this.stream);
 
           const workletName = 'audio-recorder-worklet';

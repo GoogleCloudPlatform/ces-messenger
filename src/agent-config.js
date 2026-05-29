@@ -214,7 +214,7 @@ const WIDGET_DEFAULTS = {
   size: 'large',
   // https://cloud.google.com/text-to-speech/docs/list-voices-and-types
   voice: 'en-US-Chirp3-HD-Aoede',
-}
+};
 
 class AgentConfig {
   constructor() {

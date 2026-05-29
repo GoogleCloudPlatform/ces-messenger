@@ -215,18 +215,23 @@ class WebsocketBidiStream {
       if (this.listeners.onClose) this.listeners.onClose(event);
     };
     this.websocket.onerror = this.listeners.onError;
-    this.websocket.onmessage = async (event) => {
-      const event_data = event.data;
+    this.websocket.onmessage = (event) => {
       let text;
-      if (event_data instanceof Blob) {
-        text = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsText(event_data);
+      if (event.data instanceof ArrayBuffer) {
+        const decoder = new TextDecoder('utf-8');
+        text = decoder.decode(event.data);
+      } else if (typeof event.data === 'string') {
+        text = event.data;
+      } else if (event.data instanceof Blob) {
+        // Synchronous fallback/escape path using modern API with a fast path,
+        // but since binaryType is 'arraybuffer' this is rarely called.
+        event.data.text().then((result) => {
+          const message = JSON.parse(result);
+          this.listeners.onMessage(message);
+        }).catch(err => {
+          Logger.error('WebsocketBidiStream: Failed to parse Blob message:', err);
         });
-      } else {
-        text = event_data;
+        return;
       }
       const message = JSON.parse(text);
       if (message.connection_closed) {
@@ -261,6 +266,7 @@ class WebsocketBidiStream {
     try {
       Logger.log(`WebsocketBidiStream: Creating websocket to ${this.serverWebsocketUri}...`);
       this.websocket = new WebSocket(this.serverWebsocketUri);
+      this.websocket.binaryType = 'arraybuffer';
       this._setupEventListeners();
       if (this.listeners.onConnecting) this.listeners.onConnecting();
     } catch (error) {

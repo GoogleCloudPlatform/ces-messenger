@@ -56,11 +56,20 @@ function base64ToArrayBuffer(base64) {
 }
 
 async function audioContext({ sampleRate }) {
-  const context = new (window.AudioContext || window.webkitAudioContext)({
-    sampleRate,
-  });
+  const options = { sampleRate };
+  if (isIOSOrSafari()) {
+    options.voiceProcessing = true;
+  }
+  const context = new (window.AudioContext || window.webkitAudioContext)(options);
   await context.resume();
   return context;
+}
+
+function isIOSOrSafari() {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  const isIOS = /ipad|iphone|ipod/.test(userAgent) || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent) || isIOS;
+  return isSafari;
 }
 
 export {
@@ -68,4 +77,5 @@ export {
   generateSessionId,
   base64ToArrayBuffer,
   audioContext,
+  isIOSOrSafari,
 };

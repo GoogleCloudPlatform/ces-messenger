@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { base64ToArrayBuffer } from '@/util.js';
+import { base64ToArrayBuffer, isIOSOrSafari } from '@/util.js';
 import { Logger } from '@/logger.js';
 
 // To avoid a clicking sound when audio starts playing, we fade-in audio playback
@@ -184,8 +184,29 @@ export class StreamedAudioPlayer extends AudioStreamer {
     this.nextPlayTime = 0; // Time at which the next buffer should start playing
     this.schedulingInterval = null;
     this.currentSource = null;
+    this.activeSources = new Set();
+    this.mediaStreamDestination = null;
+    this.audioElement = null;
+
     this.gainNode = this.context.createGain();
-    this.gainNode.connect(this.context.destination);
+
+    if (isIOSOrSafari()) {
+      Logger.log('[StreamedAudioPlayer] Routing output via MediaStreamAudioDestinationNode and HTML5 Audio Element for WebKit AEC compatibility');
+      this.mediaStreamDestination = this.context.createMediaStreamDestination();
+      this.gainNode.connect(this.mediaStreamDestination);
+
+      this.audioElement = new Audio();
+      this.audioElement.srcObject = this.mediaStreamDestination.stream;
+      this.audioElement.setAttribute('playsinline', 'true');
+      this.audioElement.setAttribute('autoplay', 'true');
+      this.audioElement.muted = false;
+
+      this.audioElement.play().catch((err) => {
+        Logger.warn('[StreamedAudioPlayer] Playback trigger on HTML5 Audio deferred:', err);
+      });
+    } else {
+      this.gainNode.connect(this.context.destination);
+    }
     // Used for calculating actual audio clip durations (useful for debugging)
     // This will also help know if there are still audio clips to play when each source
     // is complete. On the last one, we'll call the onComplete callback.
@@ -234,6 +255,11 @@ export class StreamedAudioPlayer extends AudioStreamer {
     if (this.context.state === 'suspended') {
       await this.context.resume();
     }
+    if (this.audioElement) {
+      this.audioElement.play().catch((err) => {
+        Logger.warn('[StreamedAudioPlayer] Failed to resume HTML5 Audio on play():', err);
+      });
+    }
     this.isPlaying = true;
     // Initialize nextPlayTime to be slightly in the future.
     if (this.nextPlayTime == 0) {
@@ -259,17 +285,26 @@ export class StreamedAudioPlayer extends AudioStreamer {
    * Stops the playback loop and clears the queue.
    */
   stop() {
-    if (this.currentSource) {
+    // Stop and disconnect ALL active and future-scheduled source nodes
+    for (const source of this.activeSources) {
       try {
-        this.audioQueue = []; // Clear the queue for next chunks
-        this.currentSource.stop();
-        this.currentSource.disconnect();
-      // eslint-disable-next-line no-unused-vars
-      } catch (e) {
+        source.stop();
+        source.disconnect();
+      } catch {
         // Ignore if already stopped
       }
     }
+    this.activeSources.clear();
+    this.startTimes = [];
+
     this.isPlaying = false;
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+      } catch {
+        // Ignore
+      }
+    }
     clearInterval(this.schedulingInterval);
     this.schedulingInterval = null;
     this.audioQueue = []; // Clear any pending audio
@@ -325,9 +360,11 @@ export class StreamedAudioPlayer extends AudioStreamer {
       // Create a source node and connect it to the destination.
       const source = this.context.createBufferSource();
       source.playbackRate.value = this.playbackRate;
+      this.activeSources.add(source);
       this.clipsPlayed++;
 
       source.onended = () => {
+        this.activeSources.delete(source);
         let clipStarted = this.startTimes.shift();
         Logger.debug(`[${this.context.currentTime}] audio clip ended playing with actual duration: ${this.context.currentTime-clipStarted}`);
         // If nothing remains to be played from the current buffer, reset the next play time

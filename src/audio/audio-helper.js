@@ -8,6 +8,7 @@ import { ref } from 'vue';
 import { AudioStreamerFactory } from '@/audio/audio-streamer.js';
 import { AudioRecorder } from '@/audio/audio-recorder.js';
 import { BidiStreamingDetectIntentAdaptor } from '@/bidi/bidi-adaptors.js';
+import { isIOSOrSafari } from '@/util.js';
 
 // Empty audio to send in push-to-talk mode when the mic is off
 const zeroFilledBuffer = new ArrayBuffer(4096);
@@ -30,6 +31,7 @@ export class AudioHelper {
     this.audioRecorder = null;
     this.audioContext = null;
     this.audioStreamer = null;
+    this.websocketUri = null;
     this.pushToTalk = !['DEFAULT_ON', 'NONE', undefined].includes(agentConfig.audioInputMode);
 
     // Speech detection
@@ -49,20 +51,26 @@ export class AudioHelper {
         // ADK uses 24kHz sample rate
         sampleRate = 24000;
         // They also bring their own websosket server
-        websocketUri = agentConfig.cesUrl;
+        this.websocketUri = agentConfig.cesUrl;
       } else if (configMessage.configMessage?.outputAudioConfig?.sample_rate_hertz) { // PBL
         sampleRate = configMessage.configMessage.outputAudioConfig.sample_rate_hertz;
       } else if (configMessage.config?.outputAudioConfig?.sampleRateHertz) { // PS
         sampleRate = configMessage.config.outputAudioConfig.sampleRateHertz;
       }
 
-      this.audioRecorder = new AudioRecorder();
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: sampleRate });
+      const contextOptions = { sampleRate: 16000 };
+      if (isIOSOrSafari()) {
+        contextOptions.voiceProcessing = true;
+      }
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)(contextOptions);
+
+      this.audioRecorder = new AudioRecorder(this.audioContext);
 
       if (agentConfig.audioOutputMode === 'NONE') {
         this.audioStreamer = AudioStreamerFactory.createStreamer(this.audioContext, 'SILENT');
       } else {
         this.audioStreamer = AudioStreamerFactory.createStreamer(this.audioContext);
+        this.audioStreamer.sampleRate = sampleRate;
         this.audioStreamer.onComplete = onCompleteCallback;
       }
 

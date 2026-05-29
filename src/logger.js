@@ -62,6 +62,10 @@ class Logger {
     if (Logger.enabled) console.log(...args);
   }
 
+  static info(...args) {
+    if (Logger.enabled) console.info(...args);
+  }
+
   static warn(...args) {
     console.warn(...args);
   }
