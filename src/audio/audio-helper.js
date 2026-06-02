@@ -9,6 +9,7 @@ import { AudioStreamerFactory } from '@/audio/audio-streamer.js';
 import { AudioRecorder } from '@/audio/audio-recorder.js';
 import { BidiStreamingDetectIntentAdaptor } from '@/bidi/bidi-adaptors.js';
 import { isIOSOrSafari } from '@/util.js';
+import { Logger } from '@/logger.js';
 
 // Empty audio to send in push-to-talk mode when the mic is off
 const zeroFilledBuffer = new ArrayBuffer(4096);
@@ -61,6 +62,14 @@ export class AudioHelper {
       const contextOptions = { sampleRate: 16000 };
       if (isIOSOrSafari()) {
         contextOptions.voiceProcessing = true;
+        if (navigator.audioSession) {
+          try {
+            navigator.audioSession.type = 'play-and-record';
+            Logger.log('[AudioHelper] Set navigator.audioSession type to play-and-record');
+          } catch (err) {
+            Logger.warn('[AudioHelper] Failed to configure navigator.audioSession type:', err);
+          }
+        }
       }
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)(contextOptions);
 
@@ -106,7 +115,16 @@ export class AudioHelper {
     if (talkingMode && this.audioContext?.state !== 'running') {
       this.audioContext.resume();
     }
+    if (talkingMode) {
+      this.unlockStreamer();
+    }
     this.talking.value = talkingMode;
+  }
+
+  unlockStreamer() {
+    if (this.audioStreamer && typeof this.audioStreamer.unlock === 'function') {
+      this.audioStreamer.unlock();
+    }
   }
 
   async startRecording(onDataCallback) {

@@ -152,7 +152,9 @@ async function continueLogin(response) {
   localStorage.accessToken = accessToken.value;
   localStorage.accessTokenExpiresAt = accessTokenExpiresAt.value;
   agentConfigInstance.messages.value = agentConfigInstance.messages.value.filter(message => message.msg_type !== 'AUTH_BUTTON');
-  startConversation();
+  if (window.kite && typeof window.kite.startConversation === 'function') {
+    window.kite.startConversation();
+  }
 }
 
 

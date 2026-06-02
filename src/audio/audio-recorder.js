@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { audioContext } from '@/util.js';
+import { audioContext, isIOSOrSafari } from '@/util.js';
 import { createWorkletFromSrc, registeredWorklets } from '@/audio/audioworklet-registry.js';
 import AudioRecordingWorklet from '@/audio/audio-recording-worklet.js';
 import { EventEmitter } from 'eventemitter3';
@@ -42,12 +42,15 @@ export class AudioRecorder extends EventEmitter {
     this.starting = new Promise((resolve, reject) => {
       (async () => {
         try {
+          const constraints = {
+            echoCancellation: true,
+          };
+          if (!isIOSOrSafari()) {
+            constraints.noiseSuppression = true;
+            constraints.autoGainControl = true;
+          }
           this.stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            }
+            audio: constraints
           });
           if (!this.audioContext) {
             this.audioContext = await audioContext({ sampleRate: this.sampleRate });
@@ -93,6 +96,7 @@ export class AudioRecorder extends EventEmitter {
         }
       })();
     });
+    return this.starting;
   }
 
   stop() {

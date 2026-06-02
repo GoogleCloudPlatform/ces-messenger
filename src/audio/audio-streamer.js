@@ -232,9 +232,7 @@ export class StreamedAudioPlayer extends AudioStreamer {
   addChunk(chunk) {
     const MAX_CHUNK_LENGTH = 10240;
     if (chunk.length > MAX_CHUNK_LENGTH) {
-      let segnb = 0;
       for (let i = 0; i < chunk.length; i += MAX_CHUNK_LENGTH) {
-        segnb++;
         const chunkSegment = chunk.slice(i, i + MAX_CHUNK_LENGTH);
         const float32ArrayChunk = this.processChunk(chunkSegment);
         if (float32ArrayChunk) this.audioQueue.push(float32ArrayChunk);
@@ -298,19 +296,27 @@ export class StreamedAudioPlayer extends AudioStreamer {
     this.startTimes = [];
 
     this.isPlaying = false;
-    if (this.audioElement) {
-      try {
-        this.audioElement.pause();
-      } catch {
-        // Ignore
-      }
-    }
+    // We intentionally do NOT pause the HTML5 Audio element here.
+    // Keeping it playing keeps it unlocked on Safari for future asynchronous WebSocket triggers.
     clearInterval(this.schedulingInterval);
     this.schedulingInterval = null;
     this.audioQueue = []; // Clear any pending audio
     this.nextPlayTime = 0;
     this.chunksPlayed = 0;
     this.clipsPlayed = 0;
+  }
+
+  /**
+   * Unlocks the HTML5 Audio element under a user gesture thread.
+   */
+  unlock() {
+    if (this.audioElement) {
+      this.audioElement.play().then(() => {
+        Logger.log('[StreamedAudioPlayer] HTML5 Audio element unlocked successfully via user gesture');
+      }).catch((err) => {
+        Logger.warn('[StreamedAudioPlayer] HTML5 Audio element unlock failed/deferred:', err);
+      });
+    }
   }
 
   /**
@@ -378,18 +384,18 @@ export class StreamedAudioPlayer extends AudioStreamer {
         }
       };
 
-      // To avoid a clicking sound when audio starts playing, we fade-in audio playback
-      // starting from near silence to full volume.
-      if (this.fadeIn && (this.startTimes.length == 0 || this.clipsPlayed == this.chunksPlayed)) {
-        this.gainNode.gain.setValueAtTime(0.0001, this.nextPlayTime); // Start at near silence
-        this.gainNode.gain.exponentialRampToValueAtTime(1.0, this.nextPlayTime + FADE_IN_END_SECONDS);
+      // Create a local gain node for this specific source to prevent global clicks
+      const localGainNode = this.context.createGain();
+      if (this.fadeIn && this.startTimes.length === 0) {
+        localGainNode.gain.setValueAtTime(0.0, this.nextPlayTime); // Start at absolute silence
+        localGainNode.gain.linearRampToValueAtTime(1.0, this.nextPlayTime + FADE_IN_END_SECONDS);
       } else {
-        this.gainNode.gain.setValueAtTime(1, this.nextPlayTime); // Start at full volume
+        localGainNode.gain.setValueAtTime(1.0, this.nextPlayTime); // Start at full volume
       }
 
       source.buffer = audioBuffer;
-      //gainNode.connect(this.context.destination);
-      source.connect(this.gainNode);
+      source.connect(localGainNode);
+      localGainNode.connect(this.gainNode);
 
       // Schedule it to play at the calculated time.
       Logger.debug(`[${this.context.currentTime}] scheduling audio clip (${chunksToPlay.length} chunks) at ${this.nextPlayTime} with expected duration ${audioBufferDuration}. Next expected at ${this.nextPlayTime + audioBufferDuration}`);

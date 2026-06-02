@@ -892,21 +892,26 @@ const startConversation = async () => {
   }
 
   try {
-    connectWebStream();
-    audioHelper.startRecording((base64Data) => {
-      if (bidiStream != null && bidiStream.isConnected()) {
-        // Prepare the message payload
-        const message = bidiAdaptor.marshallMessage(
-          { type: 'AUDIO', payload: { audio: base64Data }, vars: queryVars });
+    if (agentConfig.audioInputMode !== 'NONE') {
+      Logger.log('Requesting microphone consent before connecting to CES API...');
+      await audioHelper.startRecording((base64Data) => {
+        if (bidiStream != null && bidiStream.isConnected()) {
+          // Prepare the message payload
+          const message = bidiAdaptor.marshallMessage(
+            { type: 'AUDIO', payload: { audio: base64Data }, vars: queryVars });
 
-        logger.info({ message: '<audio>', event: 'audio sent', payload: message }, 'user-message');
-        // Send the message over the WebSocket
-        sendQueryParams();
-        sessionInput(message);
-      }
-    });
+          logger.info({ message: '<audio>', event: 'audio sent', payload: message }, 'user-message');
+          // Send the message over the WebSocket
+          sendQueryParams();
+          sessionInput(message);
+        }
+      });
+    }
+    Logger.log('Microphone consent granted (or none required). Connecting to CES API...');
+    connectWebStream();
   } catch (error) {
-    Logger.error('Error starting recording:', error);
+    Logger.error('Error during conversation initialization or microphone consent:', error);
+    insertErrorMessage('Microphone access is required for voice conversation. Please allow microphone access and try again.', true);
   }
 };
 
@@ -1093,6 +1098,12 @@ onUnmounted(() => {
 
 function open() {
   chatUiStatus.value = 'expanded';
+  if (agentConfig.audioInputMode !== 'NONE') {
+    if (audioHelper.audioContext?.state !== 'running') {
+      audioHelper.audioContext.resume();
+    }
+    audioHelper.unlockStreamer();
+  }
   startConversation();
   window.dispatchEvent(new CustomEvent('ces-chat-open-changed', { detail: { isOpen: true } }));
 };
@@ -1126,8 +1137,13 @@ function reconnect() {
     startConversation();
   };
 
-  if (agentConfig.audioInputMode !== 'NONE' && audioHelper.audioContext?.state !== 'running') {
-    audioHelper.audioContext.resume().then(start);
+  if (agentConfig.audioInputMode !== 'NONE') {
+    audioHelper.unlockStreamer();
+    if (audioHelper.audioContext?.state !== 'running') {
+      audioHelper.audioContext.resume().then(start);
+    } else {
+      start();
+    }
   } else {
     start();
   }
@@ -1268,7 +1284,7 @@ function handleMessageClick(event, message, index) {
   }
 }
 
-function buttonTemplateHandler(message, clickedElement) {
+function buttonTemplateHandler(message) {
   const context = message.payload?.context;
   // If an onclick action was defined in the context, use it instead of sending a message
   if (context && !context.onclick) {    
@@ -1648,6 +1664,7 @@ window.kite.googleOauthSignIn = googleOauthSignIn;
 window.kite.insertMessage = insertMessage;
 window.kite.insertRichMessage = insertRichMessage;
 window.kite.insertErrorMessage = insertErrorMessage;
+window.kite.startConversation = startConversation;
 
 </script>
 <style scoped>
