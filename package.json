@@ -27,12 +27,12 @@
     "@types/marked": "^5.0.2",
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
-    "@vitejs/plugin-vue": "^6.0.1",
+    "@vitejs/plugin-vue": "^6.0.7",
     "eslint": "^9.37.0",
     "eslint-config-google": "^0.14.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.5.0",
     "prettier": "^3.6.2",
-    "vite": "^7.3.2"
+    "vite": "^8.0.16"
   }
 }
