@@ -27,15 +27,25 @@ Configuration is managed through environment variables:
 - `WEBSOCKET_SERVER_PORT`: The local port for the proxy to listen on. Defaults to 8765.
 - `TOKEN_TTL`: The time-to-live for the cached token in seconds. Defaults to 300.
 - `OAUTH_SCOPES`: Comma-separated list of OAuth scopes for the token. Defaults to 'https://www.googleapis.com/auth/cloud-platform'.
+- `MAX_SESSION_DURATION_SECONDS`: Hard lifetime limit of a proxied session. Defaults to 180.
+- `IDLE_TIMEOUT_SECONDS`: Inactivity limit based on meaningful messages only. Defaults to 60 (0 disables).
+- `CONFIG_MESSAGE_TIMEOUT_SECONDS`: Max wait for the client's initial config message. Defaults to 10.
+- `AUDIO_ACTIVITY_RMS_THRESHOLD`: Normalized RMS above which client audio counts as activity. Defaults to 0.01.
 """
 
+import array
 import asyncio
+import base64
+import binascii
 import json
 import logging
+import math
 import os
 import re
+import sys
 import time
 import traceback
+import uuid
 
 import google.auth
 import google.cloud.logging
@@ -83,6 +93,90 @@ except (ValueError, TypeError):
         f"Invalid value for TOKEN_TTL: '{TOKEN_TTL}'. It must be an integer."
     )
     TOKEN_TTL = 300
+
+
+def _env_number(name, default, cast=int, minimum=0):
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = cast(raw)
+    except (ValueError, TypeError):
+        logging.warning(f"Invalid value for {name}: '{raw}'. Using default {default}.")
+        return default
+    if value < minimum:
+        logging.warning(f"{name} must be >= {minimum}. Using default {default}.")
+        return default
+    return value
+
+
+# Hard lifetime limit: the session is closed when reached, whatever the traffic.
+MAX_SESSION_DURATION_SECONDS = _env_number("MAX_SESSION_DURATION_SECONDS", 180, minimum=1)
+# Idle limit, reset only by meaningful application messages (voice, text, images,
+# variables, tool responses, agent output). WebSocket ping/pong frames and silent
+# audio frames never reset it. 0 disables the idle timeout.
+IDLE_TIMEOUT_SECONDS = _env_number("IDLE_TIMEOUT_SECONDS", 60)
+CONFIG_MESSAGE_TIMEOUT_SECONDS = _env_number("CONFIG_MESSAGE_TIMEOUT_SECONDS", 10, minimum=1)
+# Same normalized RMS threshold as the widget's VAD (src/audio/audio-helper.js).
+AUDIO_ACTIVITY_RMS_THRESHOLD = _env_number(
+    "AUDIO_ACTIVITY_RMS_THRESHOLD", 0.01, cast=float
+)
+# Bounds the closing handshake so a dead peer cannot hold a socket open.
+CLOSE_TIMEOUT_SECONDS = 5
+
+CLOSE_CODE_NORMAL = 1000
+CLOSE_CODE_POLICY_VIOLATION = 1008
+
+
+def _is_voice_audio(audio_b64):
+    """Returns True if a base64 PCM16 LE audio chunk contains more than silence."""
+    if not isinstance(audio_b64, str) or not audio_b64:
+        return False
+    try:
+        raw = base64.b64decode(audio_b64)
+    except (binascii.Error, ValueError):
+        return False
+    usable = len(raw) - (len(raw) % 2)
+    if usable == 0:
+        return False
+    samples = array.array("h")
+    samples.frombytes(raw[:usable])
+    if sys.byteorder == "big":
+        samples.byteswap()
+    rms = math.sqrt(math.sumprod(samples, samples) / len(samples)) / 32768
+    return rms > AUDIO_ACTIVITY_RMS_THRESHOLD
+
+
+def _is_meaningful_client_message(message):
+    """Tells whether a client message is real user activity.
+
+    The widget streams audio continuously, including zero-filled buffers when the
+    mic is muted (push-to-talk). Those silent chunks must not keep a session alive.
+    """
+    try:
+        data = json.loads(message)
+    except (TypeError, ValueError):
+        return True
+    if not isinstance(data, dict):
+        return True
+    realtime_input = data.get("realtimeInput")
+    if not isinstance(realtime_input, dict) or set(realtime_input) != {"audio"}:
+        return True
+    return _is_voice_audio(realtime_input.get("audio"))
+
+
+def _extract_session_id(session_string):
+    match = re.search(r"/sessions/([^/?#]+)", session_string or "")
+    return match.group(1) if match else None
+
+
+async def _safe_close(websocket, code, reason, label, session_id):
+    if websocket is None or websocket.close_code is not None:
+        return
+    try:
+        await websocket.close(code=code, reason=reason)
+    except Exception as e:
+        logging.error(f"[session={session_id}] Error closing {label} websocket: {e}")
 
 
 def is_origin_allowed(origin):
@@ -189,6 +283,13 @@ async def handle_client(client_websocket):
     access_token = None
     remote_websocket = None
     project_id = PROJECT_ID_ENV
+    # Replaced by the CES session id once the config message is parsed.
+    session_id = f"proxy-{uuid.uuid4().hex[:12]}"
+    loop = asyncio.get_running_loop()
+    started_at = loop.time()
+    last_activity = started_at
+    close_code = CLOSE_CODE_NORMAL
+    close_reason = "Session ended"
 
     logging.info(f"Client connected from: {client_websocket.remote_address}")
 
@@ -205,7 +306,9 @@ async def handle_client(client_websocket):
 
         # Step 1: Handle the initial config message
         try:
-            first_message = await client_websocket.recv()
+            first_message = await asyncio.wait_for(
+                client_websocket.recv(), timeout=CONFIG_MESSAGE_TIMEOUT_SECONDS
+            )
             first_message_json = json.loads(first_message)
             config_message = first_message_json.get(
                 "configMessage", first_message_json.get("config", None)
@@ -216,6 +319,7 @@ async def handle_client(client_websocket):
                 access_token = config_message.pop("accessToken", None)
                 environment = config_message.pop("environment", None)
                 session_string = config_message.get("session", None)
+                session_id = _extract_session_id(session_string) or session_id
 
                 if access_token:
                     logging.debug("Extracted access token from config message.")
@@ -303,7 +407,10 @@ async def handle_client(client_websocket):
                         f"Connecting to remote WebSocket {remote_websocket_url}"
                     )
                     remote_websocket = await connect(
-                        remote_websocket_url, max_size=2**22, extra_headers=headers
+                        remote_websocket_url,
+                        max_size=2**22,
+                        extra_headers=headers,
+                        close_timeout=CLOSE_TIMEOUT_SECONDS,
                     )
                     logging.debug("Connected to remote WebSocket.")
                 except Exception as e:
@@ -326,6 +433,14 @@ async def handle_client(client_websocket):
                 await client_websocket.close(code=1002, reason="Invalid first message")
                 return  # Close client connection if the first message is invalid
 
+        except TimeoutError:
+            logging.warning(
+                f"No config message received within {CONFIG_MESSAGE_TIMEOUT_SECONDS}s. Closing connection."
+            )
+            await client_websocket.close(
+                code=CLOSE_CODE_POLICY_VIOLATION, reason="Config message timeout"
+            )
+            return
         except json.JSONDecodeError:
             logging.error("Invalid JSON in first message. Closing connection.")
             await client_websocket.close(code=1002, reason="Invalid JSON")
@@ -339,49 +454,49 @@ async def handle_client(client_websocket):
             return
 
         # Step 2: Proxy subsequent messages
+        def mark_activity():
+            nonlocal last_activity
+            last_activity = loop.time()
+
         async def process_messages_from_client():
             try:
+                # Note: `async for` ends silently on a normal close (1000/1001),
+                # so the caller must not rely on an exception to detect it.
                 async for message in client_websocket:
-                    # logging.info("Received message from client, forwarding to remote...")
-                    if remote_websocket and remote_websocket.close_code is None:
-                        await remote_websocket.send(message)
-                    elif not remote_websocket:
+                    if remote_websocket.close_code is not None:
                         logging.warning(
-                            "Remote WebSocket is not connected, cannot forward client message."
+                            f"[session={session_id}] Remote WebSocket is already closed, cannot forward client message."
                         )
-                    elif remote_websocket.close_code is not None:
-                        logging.warning(
-                            "Remote WebSocket is already closed, cannot forward client message."
-                        )
-                        break  # Exit the loop if remote is closed
+                        return
+                    if _is_meaningful_client_message(message):
+                        mark_activity()
+                    await remote_websocket.send(message)
+                logging.info(
+                    f"[session={session_id}] Client closed the connection "
+                    f"(code={client_websocket.close_code})."
+                )
             except (ConnectionClosedOK, ConnectionClosedError) as e:
                 logging.info(
-                    f"Client disconnected:\n  code: {e.code}\n  reason: {e.reason}\n  error: {e}"
+                    f"[session={session_id}] Connection closed while proxying client messages:\n"
+                    f"  code: {e.code}\n  reason: {e.reason}\n  error: {e}"
                 )
-                if remote_websocket and remote_websocket.close_code is None:
-                    logging.info(
-                        "Client disconnected, explicitly closing remote websocket."
-                    )
-                    await remote_websocket.close()
-                return  # Exit the process_messages_from_client coroutine
-            except Exception as e:
-                logging.error(f"Error forwarding client message to remote: {e}")
-                if remote_websocket and remote_websocket.close_code is None:
-                    logging.info(
-                        "Error in client forwarding, attempting to close remote websocket."
-                    )
-                    await remote_websocket.close()
-                return  # Exit on error
 
         async def process_messages_from_remote():
             try:
                 async for message in remote_websocket:
+                    mark_activity()
                     sanitized = _strip_diagnostic_info(message) if _STRIPPED_PATHS else message
                     if not await send_msg_to_client(sanitized):
-                        logging.warning("send_msg_to_client failed. Breaking loop.")
-                        break
+                        logging.warning(
+                            f"[session={session_id}] send_msg_to_client failed. Breaking loop."
+                        )
+                        return
+                logging.info(
+                    f"[session={session_id}] Remote closed the connection "
+                    f"(code={remote_websocket.close_code})."
+                )
             except (ConnectionClosedOK, ConnectionClosedError) as e:
-                logging.info(f"Remote connection closed: {e}")
+                logging.info(f"[session={session_id}] Remote connection closed: {e}")
                 # send a message to the client with the reson of the connection closure
                 error_msg = {
                     "connection_closed": type(e).__name__,
@@ -389,18 +504,6 @@ async def handle_client(client_websocket):
                     "code": e.code,
                 }
                 await send_msg_to_client(json.dumps(error_msg))
-                # Then close the connection with the client
-                if client_websocket and client_websocket.close_code is None:
-                    logging.info(
-                        "Remote disconnected, explicitly closing client websocket."
-                    )
-                    await client_websocket.close()
-            except Exception as e:
-                logging.error(f"Error in process_messages_from_remote: {e}")
-                trace = traceback.format_exc()
-                logging.error(f"Full traceback:\n{trace}")
-            finally:
-                logging.info("Exiting process_messages_from_remote loop.")
 
         async def send_msg_to_client(message):
             if client_websocket.close_code is None:
@@ -408,41 +511,94 @@ async def handle_client(client_websocket):
                     await client_websocket.send(message)
                 except (ConnectionClosedOK, ConnectionClosedError):
                     logging.info(
-                        "Client connection closed, stopping forwarding from remote."
+                        f"[session={session_id}] Client connection closed, stopping forwarding from remote."
                     )
                     return False
                 except Exception as e:
-                    logging.error(f"Error sending to client: {e}")
+                    logging.error(f"[session={session_id}] Error sending to client: {e}")
                     trace = traceback.format_exc()
                     logging.error(f"Full traceback:\n{trace}")
                     return False
             else:
                 logging.info(
-                    "Client connection is closed, not forwarding message from remote."
+                    f"[session={session_id}] Client connection is closed, not forwarding message from remote."
                 )
                 return False
             return True
 
-        # Run forwarding tasks concurrently
-        await asyncio.gather(
-            process_messages_from_client(), process_messages_from_remote()
-        )
+        async def enforce_session_limits():
+            """Returns the name of the first limit reached (hard lifetime or idle)."""
+            while True:
+                now = loop.time()
+                remaining = started_at + MAX_SESSION_DURATION_SECONDS - now
+                if remaining <= 0:
+                    return "MAX_SESSION_DURATION"
+                if IDLE_TIMEOUT_SECONDS:
+                    idle_remaining = last_activity + IDLE_TIMEOUT_SECONDS - now
+                    if idle_remaining <= 0:
+                        return "IDLE_TIMEOUT"
+                    remaining = min(remaining, idle_remaining)
+                await asyncio.sleep(remaining)
+
+        # The first task to finish (client gone, remote gone or limit reached)
+        # tears down the whole session: the others are cancelled right away.
+        watchdog = asyncio.create_task(enforce_session_limits())
+        tasks = {
+            asyncio.create_task(process_messages_from_client()),
+            asyncio.create_task(process_messages_from_remote()),
+            watchdog,
+        }
+        try:
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        for task in done:
+            if not task.cancelled() and task.exception() is not None:
+                logging.error(
+                    f"[session={session_id}] Proxy task failed: {task.exception()!r}"
+                )
+
+        if watchdog in done and not watchdog.cancelled() and watchdog.exception() is None:
+            limit = watchdog.result()
+            elapsed = loop.time() - started_at
+            if limit == "MAX_SESSION_DURATION":
+                close_code = CLOSE_CODE_POLICY_VIOLATION
+                close_reason = "Max session duration exceeded"
+                logging.warning(
+                    f"[session={session_id}] Hard lifetime limit of {MAX_SESSION_DURATION_SECONDS}s "
+                    f"reached ({elapsed:.1f}s). Force-closing client and upstream websockets."
+                )
+            else:
+                close_reason = "Idle timeout"
+                logging.warning(
+                    f"[session={session_id}] No meaningful activity for {IDLE_TIMEOUT_SECONDS}s "
+                    f"(session age {elapsed:.1f}s). Force-closing client and upstream websockets."
+                )
+            # Lets the widget treat this as an agent-requested end instead of
+            # an unexpected drop, so it does not auto-reconnect.
+            await send_msg_to_client(
+                json.dumps({"endSession": {"metadata": {"reason": limit}}})
+            )
 
     except ConnectionRefusedError as e:
-        logging.error(f"Connection refused to remote WebSocket: {e}")
+        logging.error(f"[session={session_id}] Connection refused to remote WebSocket: {e}")
     except ConnectionClosedError as e:
-        logging.error(f"Connection closed with remote WebSocket: {e}")
+        logging.error(f"[session={session_id}] Connection closed with remote WebSocket: {e}")
     except Exception as e:
-        logging.error(f"An error occurred in handle_client: {e}")
+        logging.error(f"[session={session_id}] An error occurred in handle_client: {e}")
     finally:
-        logging.info(
-            f"Client disconnected from: {client_websocket.remote_address} (handle_client finally)"
+        # Both sockets are always closed here, concurrently, whatever the exit path.
+        await asyncio.gather(
+            _safe_close(remote_websocket, close_code, close_reason, "remote", session_id),
+            _safe_close(client_websocket, close_code, close_reason, "client", session_id),
         )
-        if remote_websocket and remote_websocket.close_code is None:
-            try:
-                await remote_websocket.close()  # Close connection in finally as a backup
-            except Exception as e:
-                logging.error(f"Error closing remote websocket in finally: {e}")
+        logging.info(
+            f"[session={session_id}] Session closed after {loop.time() - started_at:.1f}s "
+            f"(client {client_websocket.remote_address}, code={close_code}, reason='{close_reason}')."
+        )
 
 
 def refresh_token():
@@ -540,7 +696,18 @@ async def main():
             "Set AUTHORIZED_ORIGINS to restrict access (semicolon-separated list)."
         )
 
-    start_server = websockets.serve(handle_client, "0.0.0.0", WEBSOCKET_SERVER_PORT)
+    logging.info(
+        f"Session limits: max duration {MAX_SESSION_DURATION_SECONDS}s, "
+        f"idle timeout {IDLE_TIMEOUT_SECONDS or 'disabled'}s, "
+        f"config message timeout {CONFIG_MESSAGE_TIMEOUT_SECONDS}s."
+    )
+
+    start_server = websockets.serve(
+        handle_client,
+        "0.0.0.0",
+        WEBSOCKET_SERVER_PORT,
+        close_timeout=CLOSE_TIMEOUT_SECONDS,
+    )
 
     logging.info(f"WebSocket server started on port {WEBSOCKET_SERVER_PORT}")
 

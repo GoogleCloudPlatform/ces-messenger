@@ -32,6 +32,10 @@ If you have configured your web widget in text-only mode, you need a web based p
  -   `OAUTH_SCOPES`: (Optional) The OAuth scopes to use in the access token generation request. Defaults to `https://www.googleapis.com/auth/cloud-platform`.
  -   `AUTHORIZED_ORIGINS`: (Optional) Semicolon-separated list of allowed origins for WebSocket connections. If not set, all origins are accepted. Example: `https://www.example.com;https://staging.example.com`.
  -   `ALLOW_LOCALHOST`: (Optional) Set to `true` to allow `http://localhost` origins in addition to `AUTHORIZED_ORIGINS`. Defaults to `false`.
+ -   `MAX_SESSION_DURATION_SECONDS`: (Optional) Hard lifetime limit of a session. When reached, the proxy sends an `endSession` message to the client (so the widget does not auto-reconnect), then closes both the client and the upstream websockets with code `1008`. Defaults to `180`.
+ -   `IDLE_TIMEOUT_SECONDS`: (Optional) Closes both websockets (code `1000`) when no meaningful message was exchanged for this duration. Only user text/images/variables/tool responses, client audio containing voice, and upstream agent messages reset it; WebSocket ping/pong frames and silent audio chunks (e.g. zero-filled buffers sent when the mic is muted) do not. Set to `0` to disable. Defaults to `60`.
+ -   `CONFIG_MESSAGE_TIMEOUT_SECONDS`: (Optional) Maximum time to wait for the initial config message after the client connects. Defaults to `10`.
+ -   `AUDIO_ACTIVITY_RMS_THRESHOLD`: (Optional) Normalized RMS level (0-1) above which a client audio chunk counts as activity. Defaults to `0.01`, the widget's VAD threshold.
  -   `STRIPPED_KEYS`: (Optional) Semicolon-separated list of dot-path selectors targeting fields to remove from upstream JSON responses. Each selector is a dot-separated path from the root of the message (e.g. `rootSpan.attributes` removes only the `attributes` key inside `rootSpan`, without affecting an `attributes` key elsewhere). When not set, no filtering is applied. Recommended value: `rootSpan.attributes;rootSpan.childSpans`.
 
  ### Usage with CES Messenger
