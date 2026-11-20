@@ -654,7 +654,7 @@ const INTERNAL_ACTION = Symbol('internalAction');
 const INTERNAL_ACTION_ARG = Symbol('internalActionArg');
 
 const DOMPURIFY_CONFIG = {
-  ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src', 'alt', 'controls', 'width', 'height', 'autoplay', 'muted', 'data-index']
+  ALLOWED_ATTR: ['href', 'title', 'class', 'target', 'rel', 'src', 'alt', 'controls', 'width', 'height', 'autoplay', 'muted', 'data-index']
 };
 
 function insertMessage(actor, value, fullPayload) {
@@ -736,9 +736,9 @@ function insertErrorMessage(message, clearMessages = false) {
     if (clearMessages) clearErrorMessages();
     insertMessage('BOT', {
       payload: {
-        html: `<div style="color: #eb5555; background-color: #ffedc0; padding: 10px; border-radius: 10px; padding: 1em;">${message}<br/>` +
-          '<hr  style="height:1px;border-width:0;color:#a49b9b;background-color:#a49b9b"/>' +
-          '<span style="color: #a49b9b;""><small>To disable these messages, remove the \'<span style="font-family:monospace;">show-error-messages</span>\' setting from the web widget configuration.</small></span></div>'
+        html: `<div class="cesm-error-box">${message}<br/>` +
+          '<hr class="cesm-error-divider"/>' +
+          '<span class="cesm-error-hint"><small>To disable these messages, remove the \'<span class="cesm-error-code">show-error-messages</span>\' setting from the web widget configuration.</small></span></div>'
       }, msg_type: 'ERROR_MESSAGE'
     });
   }
@@ -2797,5 +2797,27 @@ main.dark .reconnect-button:hover {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+}
+
+.cesm-error-box {
+  color: #eb5555;
+  background-color: #ffedc0;
+  border-radius: 10px;
+  padding: 1em;
+}
+
+.cesm-error-divider {
+  height: 1px;
+  border-width: 0;
+  color: #a49b9b;
+  background-color: #a49b9b;
+}
+
+.cesm-error-hint {
+  color: #a49b9b;
+}
+
+.cesm-error-code {
+  font-family: monospace;
 }
 </style>
