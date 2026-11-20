@@ -18,8 +18,10 @@ Configuration is managed through the following environment variables:
 - `OAUTH_SCOPES`: A comma-separated list of OAuth scopes required for the access token.
 """
 
+import hmac
 import json
 import os
+import re
 import sys
 import time
 
@@ -33,6 +35,13 @@ import requests
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
 AUDIENCE = "https://ces.googleapis.com/"
+ALLOW_LOCALHOST = os.getenv("ALLOW_LOCALHOST", "false").lower() in ("true", "1", "yes")
+BROKER_API_KEY = os.getenv("BROKER_API_KEY", "").strip()
+
+LOCALHOST_ORIGIN_RE = re.compile(r"^https?://localhost(:\d+)?$")
+VALID_SESSION_RE = re.compile(
+    r"^projects/[a-z0-9-]+/locations/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?/(?:apps|agents)/[^?#\s]+$"
+)
 
 
 
@@ -94,36 +103,49 @@ def get_access_token(request):
 
     is_authorized = False
     if origin:
-        origin = origin.rstrip("/")
-        if origin.startswith("http://localhost:"):
+        origin = origin.strip().rstrip("/")
+        if ALLOW_LOCALHOST and LOCALHOST_ORIGIN_RE.match(origin):
             is_authorized = True
-        else:
-            for authorized_origin in authorized_origins:
-                if isinstance(authorized_origin, str) and origin == authorized_origin:
-                    is_authorized = True
-                    break
-                if hasattr(authorized_origin, "match") and authorized_origin.match(
-                    origin
-                ):
-                    is_authorized = True
-                    break
+        elif origin in authorized_origins:
+            is_authorized = True
 
     if is_authorized:
         headers = {
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key",
             "Access-Control-Max-Age": "3600",
+            "Vary": "Origin",
+            "Cache-Control": "no-store",
         }
     else:
-        headers = {}
+        headers = {"Cache-Control": "no-store"}
 
     # Handle CORS preflight requests.
     if request.method == "OPTIONS":
         # For preflight, return a 204 response. If the origin is not allowed,
-        # the headers dict will be empty, and the browser will block the request.
+        # the headers dict will not include CORS allow headers and the browser will block it.
         return ("", 204, headers)
+
+    # Reject requests from unauthorized or missing origins before issuing any token.
+    if not is_authorized:
+        print_log(
+            "WARNING",
+            f"Rejected token request from unauthorized origin: {origin}",
+        )
+        return ({"error": "Origin not allowed"}, 403, headers)
+
+    # If BROKER_API_KEY is configured, require a matching caller credential.
+    if BROKER_API_KEY:
+        provided_key = request.headers.get("X-API-Key", "")
+        if not provided_key:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                provided_key = auth_header[len("Bearer "):].strip()
+        if not provided_key or not hmac.compare_digest(provided_key, BROKER_API_KEY):
+            print_log("WARNING", "Rejected token request with missing or invalid API key.")
+            return ({"error": "Unauthorized"}, 401, headers)
 
     # This function should only handle GET and POST requests for the main logic.
     if request.method not in ["GET", "POST"]:
@@ -136,19 +158,24 @@ def get_access_token(request):
     # This is to support session isolation and ensure every request gets a unique signature if needed.
     if token_type == "jwt":
         target_session = None
-        
+
         # Try to get session from JSON body (allow missing Content-Type header)
         try:
-             request_json = request.get_json(force=True, silent=True)
-             if request_json:
-                 target_session = request_json.get("target_session")
+            request_json = request.get_json(force=True, silent=True)
+            if request_json:
+                target_session = request_json.get("target_session")
         except Exception:
-             pass # Ignore parsing errors
-                 
-        if target_session:
-             print_log("DEBUG", f"Generating session-specific JWT for session: {target_session}")
-        else:
-             return {"error": "Missing required field: target_session"}, 400, headers
+            pass  # Ignore parsing errors
+
+        if (
+            not target_session
+            or not isinstance(target_session, str)
+            or not VALID_SESSION_RE.match(target_session)
+            or ".." in target_session
+        ):
+            return {"error": "Missing or invalid required field: target_session"}, 400, headers
+
+        print_log("DEBUG", f"Generating session-specific JWT for session: {target_session}")
         
         jwt_token, expiry_time = generate_jwt_payload_and_sign(target_session=target_session)
 
