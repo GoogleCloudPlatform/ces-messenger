@@ -36,6 +36,7 @@ import os
 import re
 import time
 import traceback
+from urllib.parse import urlparse
 
 import google.auth
 import google.cloud.logging
@@ -59,6 +60,29 @@ ALLOW_LOCALHOST = os.getenv("ALLOW_LOCALHOST", "false").lower() in ("true", "1",
 
 PBL_ENDPOINT_TEMPLATE = "wss://{location}-dialogflow-webchannel.googleapis.com/ws/google.cloud.dialogflow.v3alpha1.Sessions/BidiStreamingDetectIntent"
 PS_ENDPOINT_TEMPLATE = "wss://ces.googleapis.com/ws/google.cloud.ces.v1.SessionService/BidiRunSession/locations/{location}"
+
+# Strict validation patterns to prevent SSRF via crafted session/location values.
+VALID_SESSION_RE = re.compile(
+    r"^projects/([a-z0-9-]+)/locations/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)/(agents|apps)/[^?#\s]+$"
+)
+VALID_ENVIRONMENT_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _is_valid_upstream_ws_url(url):
+    """Verify the constructed upstream WebSocket URL targets a googleapis.com wss:// endpoint."""
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return (
+        parsed.scheme == "wss"
+        and parsed.hostname is not None
+        and parsed.hostname.endswith(".googleapis.com")
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 CURRENT_TOKEN = None
 CURRENT_TOKEN_TIMESTAMP = None
@@ -235,12 +259,9 @@ async def handle_client(client_websocket):
                             logging.warning("No access token found in config message.")
                     access_token = CURRENT_TOKEN
 
-                if session_string:
-                    # Extract location from the session string
-                    match = re.search(
-                        r"projects/([^/]+)/locations/(.*?)/(agents|apps)/",
-                        session_string,
-                    )
+                if session_string and isinstance(session_string, str):
+                    # Extract and strictly validate project, location, and session type
+                    match = VALID_SESSION_RE.match(session_string)
                     if match:
                         if not project_id:
                             project_id = match.group(1)
@@ -248,33 +269,47 @@ async def handle_client(client_websocket):
                         session_type = match.group(3)
                         remote_websocket_url = None
                         url_template = None
+                        env_suffix = (
+                            environment.upper()
+                            if isinstance(environment, str)
+                            and VALID_ENVIRONMENT_RE.match(environment)
+                            else None
+                        )
                         if session_type == "agents":
                             # Playbooks Live
-                            if environment and os.getenv(
-                                "PBL_ENDPOINT_TEMPLATE_" + environment.upper()
+                            if env_suffix and os.getenv(
+                                "PBL_ENDPOINT_TEMPLATE_" + env_suffix
                             ):
                                 url_template = os.getenv(
-                                    "PBL_ENDPOINT_TEMPLATE_" + environment.upper()
+                                    "PBL_ENDPOINT_TEMPLATE_" + env_suffix
                                 )
                             else:
                                 url_template = PBL_ENDPOINT_TEMPLATE
                         else:
                             # Next Gen Agents
-                            if environment and os.getenv(
-                                "PS_ENDPOINT_TEMPLATE_" + environment.upper()
+                            if env_suffix and os.getenv(
+                                "PS_ENDPOINT_TEMPLATE_" + env_suffix
                             ):
                                 url_template = os.getenv(
-                                    "PS_ENDPOINT_TEMPLATE_" + environment.upper()
+                                    "PS_ENDPOINT_TEMPLATE_" + env_suffix
                                 )
                             else:
                                 url_template = PS_ENDPOINT_TEMPLATE
                         remote_websocket_url = url_template.format(location=location)
+                        if not _is_valid_upstream_ws_url(remote_websocket_url):
+                            logging.error(
+                                f"Rejected invalid upstream WebSocket URL: {remote_websocket_url}"
+                            )
+                            await client_websocket.close(
+                                code=1002, reason="Invalid upstream endpoint"
+                            )
+                            return
                         logging.info(
                             f"Generated remote websocket URL {remote_websocket_url}"
                         )
                     else:
                         logging.error(
-                            f"Could not extract location from session {session_string}"
+                            f"Could not extract valid location from session {session_string}"
                         )
                         await client_websocket.close(
                             code=1002, reason="Invalid session format"
