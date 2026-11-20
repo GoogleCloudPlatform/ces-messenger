@@ -649,14 +649,20 @@ function liveUserUtterance() {
 
 // --------------------- Message stack ---------------------
 
+// Unforgeable Symbol keys for trusted internal button actions (cannot be set from JSON payloads)
+const INTERNAL_ACTION = Symbol('internalAction');
+const INTERNAL_ACTION_ARG = Symbol('internalActionArg');
+
+const DOMPURIFY_CONFIG = {
+  ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src', 'alt', 'controls', 'width', 'height', 'autoplay', 'muted', 'data-index']
+};
+
 function insertMessage(actor, value, fullPayload) {
   const messageId = getNextMessageId();
 
   // Make sure html messages do not contain malicious code
-  if (value.payload?.html && !value.payload?.safe) {
-    value.payload.html = DOMPurify.sanitize(value.payload.html, {
-      ALLOWED_ATTR: ['href', 'title', 'class', 'style', 'target', 'rel', 'src', 'controls', 'width', 'height', 'autoplay', 'muted']
-    });
+  if (value.payload?.html) {
+    value.payload.html = DOMPurify.sanitize(value.payload.html, DOMPURIFY_CONFIG);
   }
 
   // Remove any previous message with the same HTML payload
@@ -697,7 +703,7 @@ function insertMessage(actor, value, fullPayload) {
       if (lastMessage && lastMessage.text &&
         (lastMessage.text.includes('* ') || lastMessage.text.includes('**') ||
         lastMessage.text.includes('](')  || lastMessage.text.includes('\n*'))) {
-        lastMessage.html = marked.parse(lastMessage.text);
+        lastMessage.html = DOMPurify.sanitize(marked.parse(lastMessage.text), DOMPURIFY_CONFIG);
       }
     } else {
       messages.value.push(message);
@@ -718,7 +724,7 @@ function insertRichMessage(templateId, context, contentType=undefined, renderOpt
   context.cesMessageId = getNextMessageId();
   const rendered = renderTemplate(templateId, context);
   if (!rendered) return false;
-  const payload = { html: rendered, templateId: templateId, context: context, safe: true};
+  const payload = { html: rendered, templateId: templateId, context: context };
   if (contentType) payload.contentType = contentType;
   if (renderOptions) payload.renderOptions = renderOptions;
   insertMessage('BOT', { payload: payload });
@@ -883,7 +889,8 @@ const startConversation = async () => {
       const context = {
         image: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png',
         text: agentConfig.textSignInWithGoogle,
-        onclick: `window.kite.googleOauthSignIn('${getNextMessageId()}')`
+        [INTERNAL_ACTION]: 'googleOauthSignIn',
+        [INTERNAL_ACTION_ARG]: getNextMessageId()
       }
       insertRichMessage('cesm_button', context);
       return;
@@ -1269,8 +1276,11 @@ function handleMessageClick(event, message, index) {
 
 function buttonTemplateHandler(message, clickedElement) {
   const context = message.payload?.context;
-  // If an onclick action was defined in the context, use it instead of sending a message
-  if (context && !context.onclick) {    
+  if (context && context[INTERNAL_ACTION] === 'googleOauthSignIn') {
+    googleOauthSignIn(context[INTERNAL_ACTION_ARG]);
+    return { action: 'delete' };
+  }
+  if (context) {
     const sendMessage = context.userMessage || context.text;
     if (!context.mute) insertMessage('BOT', { text: sendMessage });
     if (sendMessage) sessionInput(sendMessage);
@@ -1285,8 +1295,7 @@ function listTemplateHandler(message, clickedElement) {
   if (optionItem && context) {
     const index = optionItem.dataset.index;
     const selectedOption = context.options[index];
-    // If an onclick action was defined in the context, use it instead of sending a message
-    if (selectedOption && !selectedOption.onclick) {
+    if (selectedOption) {
       const messageToSend = selectedOption.userMessage || selectedOption.title;
       insertMessage('USER', { text: messageToSend });
       sessionInput(messageToSend);
@@ -2657,5 +2666,136 @@ main.dark .reconnect-button:hover {
     border-width: 10px;
     border-color: var(--circle-border-target-color, #fefefe);
   }
+}
+
+/* Built-in rich message template styles (kept in shadow DOM instead of inline <style>) */
+.cesm-button {
+  position: relative;
+  justify-content: center;
+  width: 100%;
+}
+
+.cesm-button button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  padding: 15px;
+  font-size: 16px;
+  background-color: #fff;
+  color: #666666;
+  font-family: 'Google Sans';
+  cursor: pointer;
+}
+
+.cesm-button button:hover {
+  background-color: #eee;
+}
+
+.cesm-button .cesm-button-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.cesm-mcq {
+  font-family: "Work Sans", "Noto Sans", sans-serif;
+  border-radius: 0.5rem;
+  position: relative;
+  width: 100%;
+  background-color: #F5F5F5;
+  overflow-x: hidden;
+  margin-block-start: 10px;
+  margin-block-end: 10px;
+}
+
+.cesm-mcq .card {
+  background-color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.25rem 1rem 0.25rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
+
+.cesm-mcq .card:hover {
+  background-color: #eee;
+}
+
+.cesm-mcq .mcq-header {
+  padding: 0.5rem 1rem 0rem;
+}
+
+.cesm-mcq .mcq-title {
+  color: #111418;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.cesm-mcq .options-list {
+  flex: 1 1 0%;
+  overflow-y: auto;
+  padding: 0.6rem;
+}
+
+.cesm-mcq .option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.cesm-mcq .option-item:first-child {
+  margin-top: 0;
+}
+
+.cesm-mcq .option-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cesm-mcq .option-image {
+  width: 4rem;
+  height: 4rem;
+  aspect-ratio: 1 / 1;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.cesm-mcq .option-details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cesm-mcq .option-details p {
+  margin-block-start: 5px;
+  margin-block-end: 5px;
+}
+
+.cesm-mcq .option-title {
+  color: #111418;
+  font-weight: 500;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.cesm-mcq .option-subtitle {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 </style>

@@ -106,11 +106,7 @@
   {{/if}}
   <div class="options-list">
     {{#each options}}
-    <div class="card option-item" data-index="{{@index}}"
-      {{#if this.onclick}}
-        onclick="{{this.onclick}}"
-      {{/if}}
-      > 
+    <div class="card option-item" data-index="{{@index}}">
       <div class="option-info">
         {{#if this.image}}
         <div class="option-image" style="background-image: url(&quot;{{this.image}}&quot;);"></div>

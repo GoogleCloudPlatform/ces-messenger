@@ -13,17 +13,6 @@ templates['cesm_button'] = template({"1":function(container,depth0,helpers,parti
   return "    background-image: url('"
     + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"image") || (depth0 != null ? lookupProperty(depth0,"image") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(depth0 != null ? depth0 : (container.nullContext || {}),{"name":"image","hash":{},"data":data,"loc":{"start":{"line":14,"column":27},"end":{"line":14,"column":36}}}) : helper)))
     + "');\n    padding-left: 65px;\n    background-size: 32px;\n    background-repeat: no-repeat;\n    background-position-x: 20px;\n    background-position-y: 50%;\n";
-},"3":function(container,depth0,helpers,partials,data) {
-    var helper, lookupProperty = container.lookupProperty || function(parent, propertyName) {
-        if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {
-          return parent[propertyName];
-        }
-        return undefined
-    };
-
-  return " onclick=\""
-    + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"onclick") || (depth0 != null ? lookupProperty(depth0,"onclick") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(depth0 != null ? depth0 : (container.nullContext || {}),{"name":"onclick","hash":{},"data":data,"loc":{"start":{"line":31,"column":57},"end":{"line":31,"column":68}}}) : helper)))
-    + "\"";
 },"compiler":[8,">= 4.3.0"],"main":function(container,depth0,helpers,partials,data) {
     var stack1, helper, alias1=depth0 != null ? depth0 : (container.nullContext || {}), lookupProperty = container.lookupProperty || function(parent, propertyName) {
         if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {
@@ -34,10 +23,8 @@ templates['cesm_button'] = template({"1":function(container,depth0,helpers,parti
 
   return "<style>\n  .cesm-button {\n    position: relative;\n    justify-content: center;\n    width: 100%;\n  }\n\n  .cesm-button button {\n    border-radius: 10px;\n    border: 1px solid #ddd;\n    padding: 15px;\n    font-size: 16px;\n"
     + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"image") : depth0),{"name":"if","hash":{},"fn":container.program(1, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":13,"column":4},"end":{"line":20,"column":11}}})) != null ? stack1 : "")
-    + "    background-color: #fff;\n    color: #666666;\n    font-family: 'Google Sans';\n    cursor: pointer;\n  }\n\n  .cesm-button button:hover {\n    background-color: #eee;\n  }\n</style>\n<div class=\"cesm-button\"><button"
-    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"onclick") : depth0),{"name":"if","hash":{},"fn":container.program(3, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":31,"column":32},"end":{"line":31,"column":76}}})) != null ? stack1 : "")
-    + ">"
-    + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"text") || (depth0 != null ? lookupProperty(depth0,"text") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(alias1,{"name":"text","hash":{},"data":data,"loc":{"start":{"line":31,"column":77},"end":{"line":31,"column":85}}}) : helper)))
+    + "    background-color: #fff;\n    color: #666666;\n    font-family: 'Google Sans';\n    cursor: pointer;\n  }\n\n  .cesm-button button:hover {\n    background-color: #eee;\n  }\n</style>\n<div class=\"cesm-button\"><button>"
+    + container.escapeExpression(((helper = (helper = lookupProperty(helpers,"text") || (depth0 != null ? lookupProperty(depth0,"text") : depth0)) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(alias1,{"name":"text","hash":{},"data":data,"loc":{"start":{"line":31,"column":33},"end":{"line":31,"column":41}}}) : helper)))
     + "</button></div>\n";
 },"useData":true});
 templates['cesm_mcq'] = template({"1":function(container,depth0,helpers,partials,data) {
@@ -70,26 +57,13 @@ templates['cesm_mcq'] = template({"1":function(container,depth0,helpers,partials
 
   return "    <div class=\"card option-item\" data-index=\""
     + alias2(((helper = (helper = lookupProperty(helpers,"index") || (data && lookupProperty(data,"index"))) != null ? helper : container.hooks.helperMissing),(typeof helper === "function" ? helper.call(alias1,{"name":"index","hash":{},"data":data,"loc":{"start":{"line":109,"column":46},"end":{"line":109,"column":56}}}) : helper)))
-    + "\"\n"
-    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"onclick") : depth0),{"name":"if","hash":{},"fn":container.program(6, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":110,"column":6},"end":{"line":112,"column":13}}})) != null ? stack1 : "")
-    + "      > \n      <div class=\"option-info\">\n"
-    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"image") : depth0),{"name":"if","hash":{},"fn":container.program(8, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":115,"column":8},"end":{"line":117,"column":15}}})) != null ? stack1 : "")
+    + "\">\n      <div class=\"option-info\">\n"
+    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"image") : depth0),{"name":"if","hash":{},"fn":container.program(8, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":111,"column":8},"end":{"line":113,"column":15}}})) != null ? stack1 : "")
     + "        <div class=\"option-details\">\n          <p class=\"option-title\">"
     + alias2(container.lambda((depth0 != null ? lookupProperty(depth0,"title") : depth0), depth0))
     + "</p>\n"
-    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"subtitle") : depth0),{"name":"if","hash":{},"fn":container.program(10, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":120,"column":10},"end":{"line":122,"column":17}}})) != null ? stack1 : "")
+    + ((stack1 = lookupProperty(helpers,"if").call(alias1,(depth0 != null ? lookupProperty(depth0,"subtitle") : depth0),{"name":"if","hash":{},"fn":container.program(10, data, 0),"inverse":container.noop,"data":data,"loc":{"start":{"line":116,"column":10},"end":{"line":118,"column":17}}})) != null ? stack1 : "")
     + "        </div>\n      </div>\n    </div>\n";
-},"6":function(container,depth0,helpers,partials,data) {
-    var lookupProperty = container.lookupProperty || function(parent, propertyName) {
-        if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {
-          return parent[propertyName];
-        }
-        return undefined
-    };
-
-  return "        onclick=\""
-    + container.escapeExpression(container.lambda((depth0 != null ? lookupProperty(depth0,"onclick") : depth0), depth0))
-    + "\"\n";
 },"8":function(container,depth0,helpers,partials,data) {
     var lookupProperty = container.lookupProperty || function(parent, propertyName) {
         if (Object.prototype.hasOwnProperty.call(parent, propertyName)) {
