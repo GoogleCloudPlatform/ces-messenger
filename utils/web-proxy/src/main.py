@@ -41,6 +41,14 @@ from google.api_core import exceptions
 
 CES_API_DOMAIN = os.getenv("CES_API_DOMAIN", "ces.googleapis.com")
 CES_API_VERSION = "v1"
+ALLOW_LOCALHOST = os.getenv("ALLOW_LOCALHOST", "false").lower() in ("true", "1", "yes")
+ALLOWED_PROJECT_ID = os.getenv("PROJECT_ID")
+
+# Strict pattern for valid CES API resource paths (prevents path traversal / arbitrary endpoint access)
+VALID_CES_PATH_RE = re.compile(
+    r"^/projects/([a-z0-9-]+)/locations/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?/(?:apps|agents)/[A-Za-z0-9._:/-]+$"
+)
+LOCALHOST_ORIGIN_RE = re.compile(r"^https?://localhost(:\d+)?$")
 
 # Keep latest token in cache for TOKEN_TTL seconds
 CURRENT_TOKEN = None
@@ -159,19 +167,11 @@ def ces_agent_request(request):
 
     is_authorized = False
     if origin:
-        origin = origin.rstrip("/")
-        if origin.startswith("http://localhost:"):
+        origin = origin.strip().rstrip("/")
+        if ALLOW_LOCALHOST and LOCALHOST_ORIGIN_RE.match(origin):
             is_authorized = True
-        else:
-            for authorized_origin in authorized_origins:
-                if isinstance(authorized_origin, str) and origin == authorized_origin:
-                    is_authorized = True
-                    break
-                if hasattr(authorized_origin, "match") and authorized_origin.match(
-                    origin
-                ):
-                    is_authorized = True
-                    break
+        elif origin in authorized_origins:
+            is_authorized = True
 
     if is_authorized:
         headers = {
@@ -179,6 +179,7 @@ def ces_agent_request(request):
             "Access-Control-Allow-Methods": "GET, POST",
             "Access-Control-Allow-Headers": "Content-Type, user-agent, Authorization",
             "Access-Control-Max-Age": "3600",
+            "Vary": "Origin",
         }
     else:
         headers = {}
@@ -189,6 +190,26 @@ def ces_agent_request(request):
         # the headers dict will be empty, and the browser will block the request.
         return ("", 204, headers)
 
+    # Reject requests from unauthorized or missing origins before attaching SA credentials.
+    if not is_authorized:
+        print_log(
+            "WARNING",
+            f"Rejected request from unauthorized origin: {origin}",
+        )
+        return ({"error": "Origin not allowed"}, 403, {})
+
+    # Validate request path to prevent path traversal or proxying to unintended endpoints.
+    path_match = VALID_CES_PATH_RE.match(request.path or "")
+    if not path_match or ".." in (request.path or ""):
+        print_log("WARNING", f"Rejected invalid CES API path: {request.path}")
+        return ({"error": "Invalid request path"}, 400, headers)
+    if ALLOWED_PROJECT_ID and path_match.group(1) != ALLOWED_PROJECT_ID:
+        print_log(
+            "WARNING",
+            f"Rejected request for unauthorized project: {path_match.group(1)}",
+        )
+        return ({"error": "Project not allowed"}, 403, headers)
+
     # --- Check Region ---
     if CF_REGION:
         check_region(CF_REGION, request.path)
@@ -198,7 +219,7 @@ def ces_agent_request(request):
     downstream_headers["Host"] = CES_API_DOMAIN
 
     # Add an access token if not found in the original request headers
-    if "Authorization" not in downstream_headers:
+    if "Authorization" not in request.headers:
         # Check if the token is cached and not expired
         if (
             CURRENT_TOKEN
@@ -245,26 +266,32 @@ def ces_agent_request(request):
                 timeout=30,
             )
         else:
-            return (f"Unsupported method: {request.method}", 405, None)
+            return (f"Unsupported method: {request.method}", 405, headers)
 
     except requests.exceptions.RequestException as e:
         error_message = f"Error proxying request to downstream server: {e}"
         print_log("ERROR", error_message)
-        return (error_message, 502, None)
+        return (error_message, 502, headers)
 
     # --- Return Downstream Response ---
-    # Exclude certain headers from being forwarded
-    excluded_headers = [
+    # Exclude hop-by-hop and downstream CORS headers so proxy CORS headers take precedence
+    excluded_headers = {
         "content-encoding",
         "content-length",
         "transfer-encoding",
         "connection",
-    ]
+        "access-control-allow-origin",
+        "access-control-allow-methods",
+        "access-control-allow-headers",
+        "access-control-max-age",
+        "vary",
+    }
     response_headers = [
         (k, v)
         for k, v in downstream_response.headers.items()
         if k.lower() not in excluded_headers
     ]
+    response_headers.extend(headers.items())
 
     return (
         downstream_response.content,
